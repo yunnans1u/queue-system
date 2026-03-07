@@ -958,4 +958,113 @@
             currentLang = lang;
             document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`lang-${lang}`).classList.add('active');
-            updateUILanguage
+            updateUILanguage();
+        }
+
+        function updateFullPhoneDisplay() {
+            const countryCode = document.getElementById('countryCode').value;
+            const phoneNumber = document.getElementById('phoneNumber').value;
+            const displaySpan = document.getElementById('fullPhoneDisplay');
+            displaySpan.textContent = phoneNumber ? `${countryCode} ${phoneNumber}` : `${countryCode} 123456789`;
+        }
+
+        document.getElementById('countryCode').addEventListener('change', updateFullPhoneDisplay);
+        document.getElementById('phoneNumber').addEventListener('input', updateFullPhoneDisplay);
+
+        function generateQueueNumber() {
+            const date = new Date();
+            const year = date.getFullYear().toString().slice(-2);
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            return `${year}${month}${day}-${random}`;
+        }
+
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            setTimeout(() => {
+                messageDiv.textContent = '';
+                messageDiv.className = 'message';
+            }, 3000);
+        }
+
+        // 提交表单
+        document.getElementById('queueForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('name').value;
+            const countryCode = document.getElementById('countryCode').value;
+            const phoneNumber = document.getElementById('phoneNumber').value;
+            const fullPhone = `${countryCode}${phoneNumber}`;
+            const guests = parseInt(document.getElementById('guests').value);
+            const babyChairCount = parseInt(document.getElementById('babyChairCount').value) || 0;
+            const seating = document.querySelector('input[name="seating"]:checked').value;
+            
+            if (!phoneNumber) {
+                showMessage('Please enter phone number', 'error');
+                return;
+            }
+            
+            const queueNumber = generateQueueNumber();
+            
+            try {
+                const docRef = await db.collection('queue').add({
+                    queueNumber,
+                    name,
+                    phone: fullPhone,
+                    countryCode,
+                    phoneNumber,
+                    guests,
+                    babyChairCount,
+                    seating,
+                    status: 'waiting',
+                    callCount: 0,
+                    tableNumber: null,
+                    createdAt: new Date().toISOString(),
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                // 保存当前用户信息
+                currentUserDocId = docRef.id;
+                currentUserQueueNumber = queueNumber;
+                userPhoneNumber = fullPhone;
+                
+                // 显示排队信息
+                document.getElementById('userQueueNumber').textContent = queueNumber;
+                document.getElementById('noQueueMessage').classList.add('hidden');
+                document.getElementById('hasQueueContent').classList.remove('hidden');
+                document.getElementById('completedQueueStatus').classList.add('hidden');
+                document.getElementById('activeQueueStatus').classList.remove('hidden');
+                
+                showMessage(translations[currentLang].success + queueNumber, 'success');
+                
+                // 重置表单但保留状态卡片
+                document.getElementById('name').value = '';
+                document.getElementById('phoneNumber').value = '';
+                document.getElementById('guests').value = '2';
+                document.getElementById('babyChairCount').value = '0';
+                document.getElementById('indoor').checked = true;
+                updateFullPhoneDisplay();
+                
+                // 滚动到状态卡片
+                setTimeout(() => {
+                    document.getElementById('queueStatusCard').scrollIntoView({ behavior: 'smooth' });
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error: ', error);
+                showMessage(translations[currentLang].error, 'error');
+            }
+        });
+
+        // 初始化
+        updateUILanguage();
+        updateFullPhoneDisplay();
+        
+        // 页面加载时显示无排队状态
+        updateUIForNoQueue();
+    </script>
+</body>
+</html>
