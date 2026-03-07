@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Queue System - Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        h2 {
+            color: #666;
+            font-size: 1.2em;
+            margin-bottom: 30px;
+        }
+        
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .tab-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #f0f0f0;
+            font-size: 16px;
+        }
+        
+        .tab-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .search-container {
+            margin-bottom: 20px;
+        }
+        
+        .search-container input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        .queue-list {
+            display: none;
+        }
+        
+        .queue-list.active {
+            display: block;
+        }
+        
+        .queue-items {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .queue-card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .queue-card:hover {
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .queue-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .queue-number {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .queue-time {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        
+        .queue-card-body {
+            margin-bottom: 15px;
+        }
+        
+        .queue-info {
+            margin: 5px 0;
+            color: #495057;
+        }
+        
+        .preferences {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        
+        .preference-tag {
+            background: #e2e8f0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #4a5568;
+        }
+        
+        .queue-card-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .action-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            flex: 1;
+            min-width: 100px;
+        }
+        
+        .action-btn:hover {
+            opacity: 0.8;
+        }
+        
+        .call-btn {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .confirm-btn {
+            background: #4299e1;
+            color: white;
+        }
+        
+        .cancel-btn {
+            background: #f56565;
+            color: white;
+        }
+        
+        .complete-btn {
+            background: #48bb78;
+            color: white;
+        }
+        
+        @media (max-width: 768px) {
+            .queue-card-actions {
+                flex-direction: column;
+            }
+            
+            .action-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <h1>Queue System Admin Panel</h1>
+        <h2>排队系统后台管理</h2>
+
+        <div class="tab-container">
+            <button class="tab-btn active" onclick="switchTab('active')">Active Queue / 当前排队</button>
+            <button class="tab-btn" onclick="switchTab('completed')">Completed / 已完成</button>
+        </div>
+
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Search by name or phone / 搜索姓名或电话..." onkeyup="searchQueue()">
+        </div>
+
+        <div id="activeQueue" class="queue-list active">
+            <h3>Active Queue / 排队中</h3>
+            <div id="activeQueueList" class="queue-items"></div>
+        </div>
+
+        <div id="completedQueue" class="queue-list">
+            <h3>Completed / 已完成</h3>
+            <div id="completedQueueList" class="queue-items"></div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    
+    <script>
+        // Firebase配置（后面会更新）
+        const firebaseConfig = {
+            apiKey: "YOUR-API-KEY",
+            authDomain: "YOUR-AUTH-DOMAIN",
+            projectId: "YOUR-PROJECT-ID",
+            storageBucket: "YOUR-STORAGE-BUCKET",
+            messagingSenderId: "YOUR-MESSAGING-SENDER-ID",
+            appId: "YOUR-APP-ID"
+        };
+
+        // 初始化Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let currentTab = 'active';
+        let activeQueue = [];
+        let completedQueue = [];
+
+        // 监听实时更新
+        db.collection('queue')
+            .orderBy('timestamp', 'asc')
+            .onSnapshot((snapshot) => {
+                activeQueue = [];
+                completedQueue = [];
+                
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    data.id = doc.id;
+                    
+                    if (data.status === 'waiting' || data.status === 'confirmed') {
+                        activeQueue.push(data);
+                    } else {
+                        completedQueue.push(data);
+                    }
+                });
+                
+                activeQueue.sort((a, b) => {
+                    if (a.timestamp && b.timestamp) {
+                        return a.timestamp - b.timestamp;
+                    }
+                    return 0;
+                });
+                
+                completedQueue.sort((a, b) => {
+                    if (a.timestamp && b.timestamp) {
+                        return b.timestamp - a.timestamp;
+                    }
+                    return 0;
+                });
+                
+                renderActiveQueue();
+                renderCompletedQueue();
+            });
+
+        // 切换标签
+        window.switchTab = function(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.queue-list').forEach(list => list.classList.remove('active'));
+            
+            if (tab === 'active') {
+                document.querySelector('.tab-btn:first-child').classList.add('active');
+                document.getElementById('activeQueue').classList.add('active');
+            } else {
+                document.querySelector('.tab-btn:last-child').classList.add('active');
+                document.getElementById('completedQueue').classList.add('active');
+            }
+        }
+
+        // 搜索功能
+        window.searchQueue = function() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            if (currentTab === 'active') {
+                const filtered = activeQueue.filter(item => 
+                    item.name.toLowerCase().includes(searchTerm) || 
+                    item.phone.includes(searchTerm) ||
+                    item.queueNumber.includes(searchTerm)
+                );
+                renderActiveQueue(filtered);
+            } else {
+                const filtered = completedQueue.filter(item => 
+                    item.name.toLowerCase().includes(searchTerm) || 
+                    item.phone.includes(searchTerm) ||
+                    item.queueNumber.includes(searchTerm)
+                );
+                renderCompletedQueue(filtered);
+            }
+        }
+
+        // 拨打电话
+        window.callCustomer = async function(id, currentCount) {
+            try {
+                await db.collection('queue').doc(id).update({
+                    callCount: (currentCount || 0) + 1
+                });
+            } catch (error) {
+                console.error('Error updating call count: ', error);
+                alert('Failed to update call count');
+            }
+        }
+
+        // 确认订单
+        window.confirmOrder = function(id) {
+            const tableNumber = prompt('Enter table number / 请输入桌号:');
+            if (tableNumber) {
+                db.collection('queue').doc(id).update({
+                    status: 'confirmed',
+                    tableNumber: tableNumber
+                }).catch(error => {
+                    console.error('Error confirming order: ', error);
+                    alert('Failed to confirm order');
+                });
+            }
+        }
+
+        // 取消订单
+        window.cancelOrder = function(id) {
+            if (confirm('Are you sure you want to cancel this order? / 确定要取消这个订单吗？')) {
+                db.collection('queue').doc(id).update({
+                    status: 'cancelled',
+                    completedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }).catch(error => {
+                    console.error('Error cancelling order: ', error);
+                    alert('Failed to cancel order');
+                });
+            }
+        }
+
+        // 完成订单
+        window.completeOrder = function(id) {
+            db.collection('queue').doc(id).update({
+                status: 'completed',
+                completedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }).catch(error => {
+                console.error('Error completing order: ', error);
+                alert('Failed to complete order');
+            });
+        }
+
+        // 渲染活跃队列
+        function renderActiveQueue(queueData = activeQueue) {
+            const container = document.getElementById('activeQueueList');
+            
+            if (queueData.length === 0) {
+                container.innerHTML = '<div class="queue-card">No active orders / 暂无排队订单</div>';
+                return;
+            }
+            
+            container.innerHTML = queueData.map(item => `
+                <div class="queue-card">
+                    <div class="queue-card-header">
+                        <span class="queue-number">#${item.queueNumber}</span>
+                        <span class="queue-time">${new Date(item.createdAt).toLocaleString()}</span>
+                    </div>
+                    <div class="queue-card-body">
+                        <div class="queue-info"><strong>Name/姓名:</strong> ${item.name}</div>
+                        <div class="queue-info"><strong>Phone/电话:</strong> ${item.phone}</div>
+                        <div class="queue-info"><strong>Guests/人数:</strong> ${item.guests}</div>
+                        <div class="preferences">
+                            ${item.babyChair ? '<span class="preference-tag">👶 Baby Chair/宝宝椅</span>' : ''}
+                            <span class="preference-tag">${item.seating === 'indoor' ? '🏠 Indoor/室内' : item.seating === 'outdoor' ? '🌳 Outdoor/室外' : '⚡ Quick/快速'}</span>
+                            ${item.tableNumber ? `<span class="preference-tag">Table/桌号: ${item.tableNumber}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="queue-card-actions">
+                        <button class="action-btn call-btn" onclick="callCustomer('${item.id}', ${item.callCount || 0})">
+                            📞 Call/拨打 ${item.callCount ? `(${item.callCount})` : ''}
+                        </button>
+                        <button class="action-btn confirm-btn" onclick="confirmOrder('${item.id}')">
+                            ✅ Confirm/确认
+                        </button>
+                        <button class="action-btn cancel-btn" onclick="cancelOrder('${item.id}')">
+                            ❌ Cancel/取消
+                        </button>
+                        <button class="action-btn complete-btn" onclick="completeOrder('${item.id}')">
+                            ✓ Complete/完成
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 渲染完成队列
+        function renderCompletedQueue(queueData = completedQueue) {
+            const container = document.getElementById('completedQueueList');
+            
+            if (queueData.length === 0) {
+                container.innerHTML = '<div class="queue-card">No completed orders / 暂无已完成订单</div>';
+                return;
+            }
+            
+            container.innerHTML = queueData.map(item => `
+                <div class="queue-card">
+                    <div class="queue-card-header">
+                        <span class="queue-number">#${item.queueNumber}</span>
+                        <span class="queue-time">${new Date(item.createdAt).toLocaleString()}</span>
+                    </div>
+                    <div class="queue-card-body">
+                        <div class="queue-info"><strong>Name/姓名:</strong> ${item.name}</div>
+                        <div class="queue-info"><strong>Phone/电话:</strong> ${item.phone}</div>
+                        <div class="queue-info"><strong>Guests/人数:</strong> ${item.guests}</div>
+                        <div class="preferences">
+                            ${item.babyChair ? '<span class="preference-tag">👶 Baby Chair/宝宝椅</span>' : ''}
+                            <span class="preference-tag">${item.seating === 'indoor' ? '🏠 Indoor/室内' : item.seating === 'outdoor' ? '🌳 Outdoor/室外' : '⚡ Quick/快速'}</span>
+                            ${item.tableNumber ? `<span class="preference-tag">Table/桌号: ${item.tableNumber}</span>` : ''}
+                        </div>
+                        <div class="queue-info"><strong>Status/状态:</strong> ${item.status === 'completed' ? 'Completed/已完成' : 'Cancelled/已取消'}</div>
+                        <div class="queue-info"><strong>Calls/拨打次数:</strong> ${item.callCount || 0}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 初始化
+        switchTab('active');
+    </script>
+</body>
+</html>

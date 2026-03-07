@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Queue System - Customer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .language-switcher {
+            text-align: right;
+            margin-bottom: 20px;
+        }
+        
+        .lang-btn {
+            padding: 8px 16px;
+            margin-left: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #f0f0f0;
+        }
+        
+        .lang-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        #subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        input[type="text"],
+        input[type="tel"],
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .example-text {
+            display: block;
+            margin-top: 5px;
+            color: #999;
+            font-size: 0.9em;
+        }
+        
+        .checkbox-group,
+        .radio-group {
+            margin-top: 10px;
+        }
+        
+        .checkbox-group label,
+        .radio-group label {
+            display: inline-block;
+            margin-right: 20px;
+            font-weight: normal;
+        }
+        
+        button[type="submit"] {
+            width: 100%;
+            padding: 14px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        button[type="submit"]:hover {
+            background: #5a67d8;
+        }
+        
+        .message {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        
+        .message.success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        
+        .message.error {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="language-switcher">
+            <button onclick="switchLanguage('en')" class="lang-btn active" id="lang-en">English</button>
+            <button onclick="switchLanguage('zh')" class="lang-btn" id="lang-zh">中文</button>
+        </div>
+
+        <h1 id="title">Restaurant Queue System</h1>
+        <p id="subtitle">Please fill in your information</p>
+
+        <form id="queueForm">
+            <div class="form-group">
+                <label id="nameLabel">Name *</label>
+                <input type="text" id="name" required>
+            </div>
+
+            <div class="form-group">
+                <label id="phoneLabel">Phone Number *</label>
+                <input type="tel" id="phone" required placeholder="+60 123456789">
+                <small class="example-text" id="phoneExample">Example: +60 123456789, +86 1234567890</small>
+            </div>
+
+            <div class="form-group">
+                <label id="guestsLabel">Number of Guests *</label>
+                <input type="number" id="guests" min="1" max="20" value="2" required>
+            </div>
+
+            <div class="form-group">
+                <label id="preferencesLabel">Seating Preference</label>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" id="babyChair"> <span id="babyChairLabel">Baby Chair</span>
+                    </label>
+                </div>
+                
+                <div class="radio-group">
+                    <label>
+                        <input type="radio" name="seating" value="indoor" id="indoor" checked> 
+                        <span id="indoorLabel">Indoor</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="seating" value="outdoor" id="outdoor"> 
+                        <span id="outdoorLabel">Outdoor</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="seating" value="quick" id="quick"> 
+                        <span id="quickLabel">Quick Service</span>
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" id="submitBtn">Join Queue</button>
+        </form>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    
+    <script>
+        // 这个部分会在设置Firebase后更新
+        const firebaseConfig = {
+            apiKey: "YOUR-API-KEY",
+            authDomain: "YOUR-AUTH-DOMAIN",
+            projectId: "YOUR-PROJECT-ID",
+            storageBucket: "YOUR-STORAGE-BUCKET",
+            messagingSenderId: "YOUR-MESSAGING-SENDER-ID",
+            appId: "YOUR-APP-ID"
+        };
+
+        // 初始化Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // 语言配置
+        const translations = {
+            en: {
+                title: "Restaurant Queue System",
+                subtitle: "Please fill in your information",
+                nameLabel: "Name *",
+                phoneLabel: "Phone Number *",
+                phoneExample: "Example: +60 123456789, +86 1234567890",
+                guestsLabel: "Number of Guests *",
+                preferencesLabel: "Seating Preference",
+                babyChairLabel: "Baby Chair",
+                indoorLabel: "Indoor",
+                outdoorLabel: "Outdoor",
+                quickLabel: "Quick Service",
+                submitBtn: "Join Queue",
+                success: "Successfully joined the queue! Your number is: ",
+                error: "Failed to join queue. Please try again."
+            },
+            zh: {
+                title: "餐厅排队系统",
+                subtitle: "请填写您的信息",
+                nameLabel: "姓名 *",
+                phoneLabel: "电话号码 *",
+                phoneExample: "示例：+60 123456789, +86 1234567890",
+                guestsLabel: "用餐人数 *",
+                preferencesLabel: "座位偏好",
+                babyChairLabel: "宝宝椅",
+                indoorLabel: "室内",
+                outdoorLabel: "室外",
+                quickLabel: "快速为先",
+                submitBtn: "加入排队",
+                success: "成功加入排队！您的号码是：",
+                error: "加入排队失败，请重试。"
+            }
+        };
+
+        let currentLang = 'en';
+
+        // 切换语言
+        window.switchLanguage = function(lang) {
+            currentLang = lang;
+            document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`lang-${lang}`).classList.add('active');
+            updateUILanguage();
+        }
+
+        // 更新UI语言
+        function updateUILanguage() {
+            const t = translations[currentLang];
+            document.getElementById('title').textContent = t.title;
+            document.getElementById('subtitle').textContent = t.subtitle;
+            document.getElementById('nameLabel').textContent = t.nameLabel;
+            document.getElementById('phoneLabel').textContent = t.phoneLabel;
+            document.getElementById('phoneExample').textContent = t.phoneExample;
+            document.getElementById('guestsLabel').textContent = t.guestsLabel;
+            document.getElementById('preferencesLabel').textContent = t.preferencesLabel;
+            document.getElementById('babyChairLabel').textContent = t.babyChairLabel;
+            document.getElementById('indoorLabel').textContent = t.indoorLabel;
+            document.getElementById('outdoorLabel').textContent = t.outdoorLabel;
+            document.getElementById('quickLabel').textContent = t.quickLabel;
+            document.getElementById('submitBtn').textContent = t.submitBtn;
+        }
+
+        // 生成排队号
+        function generateQueueNumber() {
+            const date = new Date();
+            const year = date.getFullYear().toString().slice(-2);
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            return `${year}${month}${day}-${random}`;
+        }
+
+        // 显示消息
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            
+            setTimeout(() => {
+                messageDiv.textContent = '';
+                messageDiv.className = 'message';
+            }, 5000);
+        }
+
+        // 提交表单
+        document.getElementById('queueForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('name').value;
+            const phone = document.getElementById('phone').value;
+            const guests = parseInt(document.getElementById('guests').value);
+            const babyChair = document.getElementById('babyChair').checked;
+            const seating = document.querySelector('input[name="seating"]:checked').value;
+            
+            // 验证电话号码
+            const phoneRegex = /^\+[1-9]\d{1,14}$/;
+            if (!phoneRegex.test(phone)) {
+                showMessage('Please enter a valid international phone number (e.g., +60 123456789)', 'error');
+                return;
+            }
+            
+            const queueNumber = generateQueueNumber();
+            
+            try {
+                await db.collection('queue').add({
+                    queueNumber,
+                    name,
+                    phone,
+                    guests,
+                    babyChair,
+                    seating,
+                    status: 'waiting',
+                    callCount: 0,
+                    tableNumber: null,
+                    createdAt: new Date().toISOString(),
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                showMessage(translations[currentLang].success + queueNumber, 'success');
+                document.getElementById('queueForm').reset();
+                document.getElementById('guests').value = '2';
+                document.getElementById('indoor').checked = true;
+            } catch (error) {
+                console.error('Error: ', error);
+                showMessage(translations[currentLang].error, 'error');
+            }
+        });
+
+        // 初始化语言
+        updateUILanguage();
+    </script>
+</body>
+</html>
