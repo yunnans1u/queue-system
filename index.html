@@ -246,7 +246,7 @@
             border: 2px solid #e0e7ff;
             position: relative;
             overflow: hidden;
-            display: block; /* 改为始终显示区域，内容动态控制 */
+            display: block;
         }
         
         .queue-status-card::before {
@@ -452,7 +452,7 @@
             <span id="orText">OR NEW QUEUE</span>
         </div>
 
-        <!-- 排队状态卡片 (始终显示，内容动态变化) -->
+        <!-- 排队状态卡片 (始终显示) -->
         <div id="queueStatusCard" class="queue-status-card">
             <!-- 没有排队时的提示 -->
             <div id="noQueueMessage" class="no-queue-message">
@@ -574,7 +574,7 @@
         let currentUserDocId = null;
         let currentUserQueueNumber = null;
         let allQueueData = [];
-        let userPhoneNumber = null; // 保存当前用户的手机号
+        let userPhoneNumber = null;
 
         // 语言配置
         const translations = {
@@ -720,6 +720,32 @@
                 updateUserQueuePosition();
             });
 
+        // 保存用户手机号到本地存储
+        function saveUserPhone(phone) {
+            if (phone) {
+                localStorage.setItem('userPhone', phone);
+                userPhoneNumber = phone;
+            }
+        }
+
+        // 从本地存储加载用户手机号
+        function loadUserPhone() {
+            const savedPhone = localStorage.getItem('userPhone');
+            if (savedPhone) {
+                userPhoneNumber = savedPhone;
+                // 自动查询状态
+                setTimeout(() => {
+                    checkQueueStatusByPhone(savedPhone);
+                }, 1000);
+            }
+        }
+
+        // 清除用户手机号
+        function clearUserPhone() {
+            localStorage.removeItem('userPhone');
+            userPhoneNumber = null;
+        }
+
         // 检查排队状态（通过手机号码）
         window.checkQueueStatus = async function() {
             const countryCode = document.getElementById('checkCountryCode').value;
@@ -731,13 +757,23 @@
                 return;
             }
             
+            // 保存手机号
+            saveUserPhone(fullPhone);
+            
             try {
-                // 保存手机号以便实时更新
-                userPhoneNumber = fullPhone;
-                
+                await checkQueueStatusByPhone(fullPhone);
+            } catch (error) {
+                console.error('Error checking queue: ', error);
+                showMessage('Error checking status', 'error');
+            }
+        };
+
+        // 通过手机号查询状态
+        async function checkQueueStatusByPhone(phone) {
+            try {
                 // 查询该手机号的所有订单
                 const snapshot = await db.collection('queue')
-                    .where('phone', '==', fullPhone)
+                    .where('phone', '==', phone)
                     .orderBy('createdAt', 'desc')
                     .get();
                 
@@ -763,7 +799,6 @@
                     currentUserDocId = data.id;
                     currentUserQueueNumber = data.queueNumber;
                     
-                    // 更新UI显示进行中的订单
                     document.getElementById('userQueueNumber').textContent = data.queueNumber;
                     document.getElementById('noQueueMessage').classList.add('hidden');
                     document.getElementById('hasQueueContent').classList.remove('hidden');
@@ -794,10 +829,10 @@
                 }, 500);
                 
             } catch (error) {
-                console.error('Error checking queue: ', error);
+                console.error('Error in checkQueueStatusByPhone:', error);
                 showMessage('Error checking status', 'error');
             }
-        };
+        }
 
         // 更新UI显示没有排队
         function updateUIForNoQueue() {
@@ -808,16 +843,16 @@
         // 显示新排队表单
         window.showNewQueueForm = function() {
             document.getElementById('queueForm').scrollIntoView({ behavior: 'smooth' });
-            // 不清除当前用户ID，让用户可以重新排队
+            // 清除当前用户ID，让用户可以重新排队
+            currentUserDocId = null;
+            currentUserQueueNumber = null;
+            clearUserPhone(); // 清除保存的手机号
+            updateUIForNoQueue();
         };
 
         // 更新用户的排队位置
         function updateUserQueuePosition() {
             if (!currentUserDocId || !currentUserQueueNumber) {
-                // 如果有保存的手机号，但当前没有active订单，尝试查询
-                if (userPhoneNumber) {
-                    checkQueueStatusByPhone(userPhoneNumber);
-                }
                 return;
             }
             
@@ -853,72 +888,6 @@
                     currentUserQueueNumber = null;
                     updateUIForNoQueue();
                 }
-            }
-        }
-
-        // 通过手机号查询状态（用于实时更新）
-        async function checkQueueStatusByPhone(phone) {
-            try {
-                const snapshot = await db.collection('queue')
-                    .where('phone', '==', phone)
-                    .where('status', 'in', ['waiting', 'confirmed'])
-                    .orderBy('createdAt', 'desc')
-                    .limit(1)
-                    .get();
-                
-                if (!snapshot.empty) {
-                    // 还有进行中的订单
-                    const data = snapshot.docs[0].data();
-                    data.id = snapshot.docs[0].id;
-                    
-                    currentUserDocId = data.id;
-                    currentUserQueueNumber = data.queueNumber;
-                    
-                    document.getElementById('userQueueNumber').textContent = data.queueNumber;
-                    document.getElementById('noQueueMessage').classList.add('hidden');
-                    document.getElementById('hasQueueContent').classList.remove('hidden');
-                    document.getElementById('completedQueueStatus').classList.add('hidden');
-                    document.getElementById('activeQueueStatus').classList.remove('hidden');
-                    
-                    // 重新计算位置
-                    const userIndex = allQueueData.findIndex(item => item.id === data.id);
-                    if (userIndex !== -1) {
-                        document.getElementById('aheadCount').textContent = userIndex;
-                        document.getElementById('positionText').textContent = 
-                            translations[currentLang].positionText + (userIndex + 1);
-                        
-                        const totalCount = allQueueData.length;
-                        const progressPercent = totalCount > 0 ? ((totalCount - userIndex) / totalCount) * 100 : 0;
-                        document.getElementById('progressFill').style.width = progressPercent + '%';
-                    }
-                    
-                } else {
-                    // 没有进行中的订单
-                    currentUserDocId = null;
-                    currentUserQueueNumber = null;
-                    
-                    // 查询是否有已完成订单
-                    const completedSnapshot = await db.collection('queue')
-                        .where('phone', '==', phone)
-                        .orderBy('createdAt', 'desc')
-                        .limit(1)
-                        .get();
-                    
-                    if (!completedSnapshot.empty) {
-                        // 有已完成订单，显示完成状态
-                        const data = completedSnapshot.docs[0].data();
-                        document.getElementById('userQueueNumber').textContent = data.queueNumber;
-                        document.getElementById('noQueueMessage').classList.add('hidden');
-                        document.getElementById('hasQueueContent').classList.remove('hidden');
-                        document.getElementById('activeQueueStatus').classList.add('hidden');
-                        document.getElementById('completedQueueStatus').classList.remove('hidden');
-                    } else {
-                        // 完全没有订单
-                        updateUIForNoQueue();
-                    }
-                }
-            } catch (error) {
-                console.error('Error checking status by phone:', error);
             }
         }
 
@@ -1029,7 +998,7 @@
                 // 保存当前用户信息
                 currentUserDocId = docRef.id;
                 currentUserQueueNumber = queueNumber;
-                userPhoneNumber = fullPhone;
+                saveUserPhone(fullPhone); // 保存到本地存储
                 
                 // 显示排队信息
                 document.getElementById('userQueueNumber').textContent = queueNumber;
@@ -1040,7 +1009,7 @@
                 
                 showMessage(translations[currentLang].success + queueNumber, 'success');
                 
-                // 重置表单但保留状态卡片
+                // 重置表单
                 document.getElementById('name').value = '';
                 document.getElementById('phoneNumber').value = '';
                 document.getElementById('guests').value = '2';
@@ -1065,6 +1034,9 @@
         
         // 页面加载时显示无排队状态
         updateUIForNoQueue();
+        
+        // 加载保存的手机号
+        loadUserPhone();
     </script>
 </body>
 </html>
