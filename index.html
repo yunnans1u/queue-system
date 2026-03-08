@@ -336,29 +336,6 @@
             margin-top: 10px;
         }
         
-        .no-queue-message {
-            text-align: center;
-            color: #999;
-            font-size: 16px;
-            padding: 30px 0;
-        }
-        
-        .loading-spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 10px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
         /* 免责声明卡片 */
         .notice-card {
             background: #fff9e6;
@@ -417,7 +394,7 @@
         }
         
         .hidden {
-            display: none !important;
+            display: none;
         }
         
         @media (min-width: 480px) {
@@ -467,40 +444,26 @@
             <span id="orText">OR NEW QUEUE</span>
         </div>
 
-        <!-- 排队状态卡片 -->
-        <div id="queueStatusCard" class="queue-status-card">
-            <!-- 加载中提示 -->
-            <div id="loadingMessage" class="no-queue-message">
-                <div class="loading-spinner"></div>
-                <span id="loadingText">Loading...</span>
+        <!-- 排队状态卡片 (默认隐藏) -->
+        <div id="queueStatusCard" class="queue-status-card hidden">
+            <div class="queue-number-box">
+                <span id="userQueueNumber">A001</span>
             </div>
             
-            <!-- 没有排队时的提示 -->
-            <div id="noQueueMessage" class="no-queue-message hidden">
-                👋 <span id="noQueueText">You have no active queue</span>
+            <div id="activeQueueStatus">
+                <div class="ahead-count" id="aheadCount">0</div>
+                <div class="ahead-label" id="aheadLabel">people ahead of you</div>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                
+                <div class="position-text" id="positionText">Your position: 1</div>
             </div>
             
-            <!-- 有排队时的内容 -->
-            <div id="hasQueueContent" class="hidden">
-                <div class="queue-number-box">
-                    <span id="userQueueNumber">A001</span>
-                </div>
-                
-                <div id="activeQueueStatus">
-                    <div class="ahead-count" id="aheadCount">0</div>
-                    <div class="ahead-label" id="aheadLabel">people ahead of you</div>
-                    
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-                    </div>
-                    
-                    <div class="position-text" id="positionText">Your position: 1</div>
-                </div>
-                
-                <div id="completedQueueStatus" class="hidden">
-                    <div class="queue-info-completed" id="completedMessage">Your previous queue is completed</div>
-                    <button class="new-queue-btn" onclick="showNewQueueForm()" id="newQueueBtn">Join New Queue</button>
-                </div>
+            <div id="completedQueueStatus" class="hidden">
+                <div class="queue-info-completed" id="completedMessage">Your previous queue is completed</div>
+                <button class="new-queue-btn" onclick="showNewQueueForm()" id="newQueueBtn">Join New Queue</button>
             </div>
         </div>
 
@@ -588,7 +551,6 @@
             appId: "1:310070213969:web:830f5933d2ed13cd5ee770"
         };
 
-        // 初始化 Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
@@ -596,10 +558,8 @@
         let currentUserDocId = null;
         let currentUserQueueNumber = null;
         let allQueueData = [];
-        let userPhoneNumber = null;
-        let isFirebaseReady = false;
 
-        // 语言配置
+        // 语言配置 - 增加日语和韩语
         const translations = {
             en: {
                 title: "Restaurant Queue",
@@ -627,10 +587,8 @@
                 noticeTitle: "📋 Important Notice",
                 noticeText: "Queue numbers are for reference only and may not be 100% accurate due to network delays, table availability, and our discretion to adjust seating arrangements.",
                 noticeFooter: "We appreciate your understanding and patience 🙏",
-                notFound: "No queue found for this number",
-                foundMessage: "Found your queue: ",
-                noQueue: "You have no active queue",
-                loading: "Loading..."
+                notFound: "No active queue found for this number",
+                foundMessage: "Found your active queue: "
             },
             zh: {
                 title: "餐厅排队",
@@ -658,10 +616,8 @@
                 noticeTitle: "📋 重要提示",
                 noticeText: "排队号码仅供参考，实际等候时间可能因网络延迟、桌位安排及现场调度而有所变动。",
                 noticeFooter: "感谢您的理解与耐心 🙏",
-                notFound: "此号码暂无排队记录",
-                foundMessage: "找到您的排队: ",
-                noQueue: "您目前没有排队",
-                loading: "加载中..."
+                notFound: "此号码暂无有效排队",
+                foundMessage: "找到您的排队: "
             },
             ja: {
                 title: "レストラン待ち行列",
@@ -690,9 +646,7 @@
                 noticeText: "待ち番号は参考値です。ネットワーク遅延、席の状況、店舗の判断により実際の待ち時間と異なる場合があります。",
                 noticeFooter: "ご理解とご協力に感謝します 🙏",
                 notFound: "この番号の待ち行列は見つかりません",
-                foundMessage: "待ち行列が見つかりました: ",
-                noQueue: "待ち行列はありません",
-                loading: "読み込み中..."
+                foundMessage: "待ち行列が見つかりました: "
             },
             ko: {
                 title: "레스토랑 대기열",
@@ -721,79 +675,22 @@
                 noticeText: "대기 번호는 참고용입니다. 네트워크 지연, 테이블 상황, 현장 상황에 따라 실제 대기 시간이 다를 수 있습니다.",
                 noticeFooter: "양해와 인내에 감사드립니다 🙏",
                 notFound: "이 번호의 대기열이 없습니다",
-                foundMessage: "대기열을 찾았습니다: ",
-                noQueue: "대기열이 없습니다",
-                loading: "로딩 중..."
+                foundMessage: "대기열을 찾았습니다: "
             }
         };
 
-        // 保存用户手机号到本地存储
-        function saveUserPhone(phone) {
-            if (phone) {
-                localStorage.setItem('userPhone', phone);
-                userPhoneNumber = phone;
-                console.log('Phone saved:', phone);
-            }
-        }
-
-        // 从本地存储加载用户手机号
-        function loadUserPhone() {
-            const savedPhone = localStorage.getItem('userPhone');
-            if (savedPhone) {
-                userPhoneNumber = savedPhone;
-                console.log('Phone loaded:', savedPhone);
-                return true;
-            }
-            return false;
-        }
-
-        // 清除用户手机号
-        function clearUserPhone() {
-            localStorage.removeItem('userPhone');
-            userPhoneNumber = null;
-            currentUserDocId = null;
-            currentUserQueueNumber = null;
-            console.log('Phone cleared');
-        }
-
-        // 监听所有活跃排队数据 - 实时更新
+        // 监听所有排队数据
         db.collection('queue')
-            .where('status', 'in', ['waiting', 'confirmed'])
-            .orderBy('timestamp', 'asc')
-            .onSnapshot((snapshot) => {
-                allQueueData = [];
-                snapshot.forEach(doc => {
+.where('status', 'in', ['waiting', 'confirmed'])
+.orderBy('createdAt', 'asc')
+.onSnapshot((snapshot) => {
                     const data = doc.data();
                     data.id = doc.id;
                     allQueueData.push(data);
                 });
                 
-                console.log('Queue updated, total:', allQueueData.length);
-                
-                // Firebase 已就绪
-                if (!isFirebaseReady) {
-                    isFirebaseReady = true;
-                    // 隐藏加载中
-                    document.getElementById('loadingMessage').classList.add('hidden');
-                    
-                    // 如果有保存的手机号，自动查询
-                    if (userPhoneNumber) {
-                        console.log('Auto checking for phone:', userPhoneNumber);
-                        checkQueueStatusByPhone(userPhoneNumber);
-                    } else if (loadUserPhone()) {
-                        console.log('Auto checking for loaded phone:', userPhoneNumber);
-                        checkQueueStatusByPhone(userPhoneNumber);
-                    } else {
-                        // 没有保存的手机号，显示无排队
-                        document.getElementById('noQueueMessage').classList.remove('hidden');
-                    }
-                }
-                
-                // 更新当前用户的排队位置
+                // 更新当前用户的排队进度
                 updateUserQueuePosition();
-            }, (error) => {
-                console.error('Firebase error:', error);
-                document.getElementById('loadingMessage').innerHTML = '连接失败，请刷新页面';
             });
 
         // 检查排队状态（通过手机号码）
@@ -807,47 +704,14 @@
                 return;
             }
             
-            // 显示加载中
-            document.getElementById('loadingMessage').classList.remove('hidden');
-            document.getElementById('noQueueMessage').classList.add('hidden');
-            document.getElementById('hasQueueContent').classList.add('hidden');
-            
-            // 保存手机号
-            saveUserPhone(fullPhone);
-            
             try {
-                await checkQueueStatusByPhone(fullPhone);
-            } catch (error) {
-                console.error('Error checking queue:', error);
-                showMessage('Error checking status', 'error');
-                document.getElementById('loadingMessage').classList.add('hidden');
-                document.getElementById('noQueueMessage').classList.remove('hidden');
-            }
-        };
-
-        // 通过手机号查询状态
-        async function checkQueueStatusByPhone(phone) {
-            try {
-                console.log('Checking status for phone:', phone);
-                
                 // 查询该手机号的所有订单
                 const snapshot = await db.collection('queue')
-                    .where('phone', '==', phone)
+                    .where('phone', '==', fullPhone)
                     .orderBy('createdAt', 'desc')
                     .get();
                 
-                console.log('Found orders:', snapshot.size);
-                
-                // 隐藏加载中
-                document.getElementById('loadingMessage').classList.add('hidden');
-                
                 if (snapshot.empty) {
-                    // 没有找到任何订单
-                    console.log('No orders found');
-                    currentUserDocId = null;
-                    currentUserQueueNumber = null;
-                    document.getElementById('noQueueMessage').classList.remove('hidden');
-                    document.getElementById('hasQueueContent').classList.add('hidden');
                     showMessage(translations[currentLang].notFound, 'error');
                     return;
                 }
@@ -862,32 +726,25 @@
                     const data = activeOrder.data();
                     data.id = activeOrder.id;
                     
-                    console.log('Active order found:', data.queueNumber);
-                    
                     currentUserDocId = data.id;
                     currentUserQueueNumber = data.queueNumber;
                     
                     document.getElementById('userQueueNumber').textContent = data.queueNumber;
-                    document.getElementById('noQueueMessage').classList.add('hidden');
-                    document.getElementById('hasQueueContent').classList.remove('hidden');
                     document.getElementById('completedQueueStatus').classList.add('hidden');
                     document.getElementById('activeQueueStatus').classList.remove('hidden');
+                    document.getElementById('queueStatusCard').classList.remove('hidden');
                     
                     showMessage(translations[currentLang].foundMessage + data.queueNumber, 'success');
-                    
-                    // 立即更新位置
                     updateUserQueuePosition();
                     
                 } else {
                     // 所有订单都已 completed 或 cancelled
-                    console.log('All orders completed');
                     const latestOrder = snapshot.docs[0].data();
                     
                     document.getElementById('userQueueNumber').textContent = latestOrder.queueNumber;
-                    document.getElementById('noQueueMessage').classList.add('hidden');
-                    document.getElementById('hasQueueContent').classList.remove('hidden');
                     document.getElementById('activeQueueStatus').classList.add('hidden');
                     document.getElementById('completedQueueStatus').classList.remove('hidden');
+                    document.getElementById('queueStatusCard').classList.remove('hidden');
                     
                     // 清除当前用户ID，允许新排队
                     currentUserDocId = null;
@@ -900,67 +757,37 @@
                 }, 500);
                 
             } catch (error) {
-                console.error('Error in checkQueueStatusByPhone:', error);
-                document.getElementById('loadingMessage').classList.add('hidden');
-                document.getElementById('noQueueMessage').classList.remove('hidden');
-                throw error;
+                console.error('Error checking queue: ', error);
+                showMessage('Error checking status', 'error');
             }
-        }
+        };
+
+        // 显示新排队表单
+        window.showNewQueueForm = function() {
+            document.getElementById('queueStatusCard').classList.add('hidden');
+            document.getElementById('queueForm').scrollIntoView({ behavior: 'smooth' });
+        };
 
         // 更新用户的排队位置
         function updateUserQueuePosition() {
-            if (!currentUserDocId || !currentUserQueueNumber) {
-                return;
-            }
+            if (!currentUserDocId || !currentUserQueueNumber) return;
             
-            console.log('Updating position for:', currentUserQueueNumber);
-            
-            // 在所有排队数据中查找当前用户
             const userIndex = allQueueData.findIndex(item => item.id === currentUserDocId);
             
             if (userIndex !== -1) {
-                // 用户还在排队中
                 const aheadCount = userIndex;
-                const totalCount = allQueueData.length;
-                
-                console.log('Position found:', userIndex + 1, 'of', totalCount);
                 
                 document.getElementById('aheadCount').textContent = aheadCount;
                 document.getElementById('positionText').textContent = 
                     translations[currentLang].positionText + (userIndex + 1);
                 
+                const totalCount = allQueueData.length;
                 const progressPercent = totalCount > 0 ? ((totalCount - userIndex) / totalCount) * 100 : 0;
                 document.getElementById('progressFill').style.width = progressPercent + '%';
                 
-                // 确保显示正确的UI
-                document.getElementById('noQueueMessage').classList.add('hidden');
-                document.getElementById('hasQueueContent').classList.remove('hidden');
-                document.getElementById('completedQueueStatus').classList.add('hidden');
-                document.getElementById('activeQueueStatus').classList.remove('hidden');
-                
-            } else {
-                console.log('User not found in queue, checking by phone');
-                // 用户不在排队中（可能被完成或取消了）
-                // 通过手机号重新检查状态
-                if (userPhoneNumber) {
-                    checkQueueStatusByPhone(userPhoneNumber);
-                }
+                document.getElementById('queueStatusCard').classList.remove('hidden');
             }
         }
-
-        // 更新UI显示没有排队
-        function updateUIForNoQueue() {
-            document.getElementById('noQueueMessage').classList.remove('hidden');
-            document.getElementById('hasQueueContent').classList.add('hidden');
-            document.getElementById('loadingMessage').classList.add('hidden');
-        }
-
-        // 显示新排队表单
-        window.showNewQueueForm = function() {
-            document.getElementById('queueForm').scrollIntoView({ behavior: 'smooth' });
-            clearUserPhone();
-            updateUIForNoQueue();
-        };
 
         // 更新UI语言
         function updateUILanguage() {
@@ -987,8 +814,6 @@
             document.getElementById('noticeTitle').textContent = t.noticeTitle;
             document.getElementById('noticeText').textContent = t.noticeText;
             document.getElementById('noticeFooter').textContent = t.noticeFooter;
-            document.getElementById('noQueueText').textContent = t.noQueue;
-            document.getElementById('loadingText').textContent = t.loading;
             
             updateUserQueuePosition();
         }
@@ -1049,11 +874,6 @@
             const queueNumber = generateQueueNumber();
             
             try {
-                // 显示加载中
-                document.getElementById('loadingMessage').classList.remove('hidden');
-                document.getElementById('noQueueMessage').classList.add('hidden');
-                document.getElementById('hasQueueContent').classList.add('hidden');
-                
                 const docRef = await db.collection('queue').add({
                     queueNumber,
                     name,
@@ -1070,40 +890,27 @@
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 
-                console.log('Queue added:', docRef.id);
-                
-                // 保存当前用户信息
                 currentUserDocId = docRef.id;
                 currentUserQueueNumber = queueNumber;
-                saveUserPhone(fullPhone);
                 
-                // 显示排队信息
                 document.getElementById('userQueueNumber').textContent = queueNumber;
-                document.getElementById('loadingMessage').classList.add('hidden');
-                document.getElementById('noQueueMessage').classList.add('hidden');
-                document.getElementById('hasQueueContent').classList.remove('hidden');
                 document.getElementById('completedQueueStatus').classList.add('hidden');
                 document.getElementById('activeQueueStatus').classList.remove('hidden');
                 
                 showMessage(translations[currentLang].success + queueNumber, 'success');
                 
-                // 重置表单
-                document.getElementById('name').value = '';
-                document.getElementById('phoneNumber').value = '';
+                document.getElementById('queueForm').reset();
                 document.getElementById('guests').value = '2';
                 document.getElementById('babyChairCount').value = '0';
                 document.getElementById('indoor').checked = true;
                 updateFullPhoneDisplay();
                 
-                // 滚动到状态卡片
                 setTimeout(() => {
                     document.getElementById('queueStatusCard').scrollIntoView({ behavior: 'smooth' });
                 }, 500);
                 
             } catch (error) {
-                console.error('Error adding queue:', error);
-                document.getElementById('loadingMessage').classList.add('hidden');
-                document.getElementById('noQueueMessage').classList.remove('hidden');
+                console.error('Error: ', error);
                 showMessage(translations[currentLang].error, 'error');
             }
         });
@@ -1111,13 +918,6 @@
         // 初始化
         updateUILanguage();
         updateFullPhoneDisplay();
-        
-        // 显示加载中
-        document.getElementById('loadingMessage').classList.remove('hidden');
-        document.getElementById('noQueueMessage').classList.add('hidden');
-        
-        // 加载保存的手机号
-        loadUserPhone();
     </script>
 </body>
 </html>
