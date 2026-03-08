@@ -681,9 +681,11 @@
 
         // 监听所有排队数据
         db.collection('queue')
-.where('status', 'in', ['waiting', 'confirmed'])
-.orderBy('createdAt', 'asc')
-.onSnapshot((snapshot) => {
+            .where('status', 'in', ['waiting', 'confirmed'])
+            .orderBy('timestamp', 'asc')
+            .onSnapshot((snapshot) => {
+                allQueueData = [];
+                snapshot.forEach(doc => {
                     const data = doc.data();
                     data.id = doc.id;
                     allQueueData.push(data);
