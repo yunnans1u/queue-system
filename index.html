@@ -378,7 +378,7 @@
             <!-- 有排队时的内容 -->
             <div id="hasQueueContent" class="hidden">
                 <div class="queue-number-box">
-                    <span id="userQueueNumber">A001</span>
+                    <span id="userQueueNumber">A1</span>
                 </div>
                 
                 <div id="activeQueueStatus">
@@ -626,6 +626,32 @@
                 document.getElementById('loadingMessage').innerHTML = '连接失败，请刷新页面';
             });
 
+        // 生成排队号 - 格式：字母 + 数字 (A1-999)
+        function generateQueueNumber() {
+            // 获取今天的日期
+            const today = new Date();
+            
+            // 使用基准日期（2024-01-01）来计算天数差，决定今天的字母
+            const baseDate = new Date(2024, 0, 1); // 2024年1月1日
+            const diffTime = today - baseDate;
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            
+            // 天数差 mod 26 决定今天的字母 (0-25 -> A-Z)
+            const letterIndex = diffDays % 26;
+            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            const todayLetter = letters[letterIndex];
+            
+            // 生成随机数字（1-999）
+            const randomNum = Math.floor(Math.random() * 999) + 1;
+            
+            // 组合成最终排队号
+            const queueNumber = `${todayLetter}${randomNum}`;
+            
+            console.log(`今日字母: ${todayLetter} (第${diffDays}天), 排队号: ${queueNumber}`);
+            
+            return queueNumber;
+        }
+
         // 更新用户的排队位置
         function updateUserQueuePosition() {
             if (!currentUserDocId || !currentUserQueueNumber) {
@@ -718,15 +744,6 @@
 
         document.getElementById('countryCode').addEventListener('change', updateFullPhoneDisplay);
         document.getElementById('phoneNumber').addEventListener('input', updateFullPhoneDisplay);
-
-        function generateQueueNumber() {
-            const date = new Date();
-            const year = date.getFullYear().toString().slice(-2);
-            const month = (date.getMonth() + 1).toString().padStart(2, '0');
-            const day = date.getDate().toString().padStart(2, '0');
-            const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-            return `${year}${month}${day}-${random}`;
-        }
 
         function showMessage(text, type) {
             const messageDiv = document.getElementById('message');
