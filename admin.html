@@ -105,7 +105,6 @@
             transition: all 0.2s;
         }
         
-        /* 超时警告样式 - 亮红灯 */
         .queue-card.timeout-warning {
             border-left: 8px solid #f56565;
             background: #fff5f5;
@@ -453,6 +452,10 @@
             font-weight: 500;
         }
         
+        .hidden {
+            display: none !important;
+        }
+        
         @media (max-width: 380px) {
             .name-large {
                 font-size: 20px;
@@ -517,6 +520,7 @@
             appId: "1:310070213969:web:830f5933d2ed13cd5ee770"
         };
 
+        // 初始化 Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
@@ -566,6 +570,7 @@
             }
         }
 
+        // 监听实时更新
         db.collection('queue')
             .orderBy('timestamp', 'asc')
             .onSnapshot((snapshot) => {
@@ -591,6 +596,7 @@
                 updateTimeoutStats();
             });
 
+        // 切换标签
         window.switchTab = function(tab) {
             currentTab = tab;
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -605,6 +611,7 @@
             }
         }
 
+        // 搜索功能
         window.searchQueue = function() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             
@@ -625,11 +632,13 @@
             }
         }
 
+        // 拨打电话
         window.makeCall = function(phoneNumber) {
             const cleanNumber = phoneNumber.replace(/\s/g, '');
             window.location.href = `tel:${cleanNumber}`;
         }
 
+        // 拨打并记录次数
         window.callCustomer = async function(id, currentCount, phoneNumber) {
             try {
                 window.makeCall(phoneNumber);
@@ -638,36 +647,58 @@
                 });
             } catch (error) {
                 console.error(error);
-                alert('Failed to update call count');
+                alert('记录拨打次数失败');
             }
         }
 
+        // 确认订单
         window.confirmOrder = function(id) {
-            const tableNumber = prompt('桌号 / Table:');
+            const tableNumber = prompt('请输入桌号 / Enter table number:');
             if (tableNumber) {
                 db.collection('queue').doc(id).update({
                     status: 'confirmed',
                     tableNumber: tableNumber
+                }).then(() => {
+                    alert(`✅ 订单已确认，桌号: ${tableNumber}`);
+                }).catch(error => {
+                    console.error('Error confirming order:', error);
+                    alert('❌ 确认失败，请重试');
                 });
             }
         }
 
+        // 取消订单（带确认）
         window.cancelOrder = function(id) {
-            if (confirm('取消订单？')) {
+            if (confirm('❌ 确定取消此订单？\n取消后将移到已取消列表。')) {
                 db.collection('queue').doc(id).update({
                     status: 'cancelled',
                     completedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }).then(() => {
+                    alert('订单已取消');
+                }).catch(error => {
+                    console.error('Error cancelling order:', error);
+                    alert('❌ 操作失败，请重试');
                 });
             }
         }
 
+        // 完成订单（带确认）- 这是主要修改的地方
         window.completeOrder = function(id) {
-            db.collection('queue').doc(id).update({
-                status: 'completed',
-                completedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            if (confirm('✅ 确认完成此订单？\n确定后订单将移到已完成列表。')) {
+                db.collection('queue').doc(id).update({
+                    status: 'completed',
+                    completedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }).then(() => {
+                    // 可选：显示成功提示
+                    // alert('✅ 订单已完成！');
+                }).catch(error => {
+                    console.error('Error completing order:', error);
+                    alert('❌ 操作失败，请重试');
+                });
+            }
         }
 
+        // 渲染活跃队列
         function renderActiveQueue(queueData = activeQueue) {
             const container = document.getElementById('activeQueueList');
             if (queueData.length === 0) {
@@ -754,6 +785,7 @@
             `}).join('');
         }
 
+        // 渲染完成队列
         function renderCompletedQueue(queueData = completedQueue) {
             const container = document.getElementById('completedQueueList');
             if (queueData.length === 0) {
@@ -821,6 +853,7 @@
             updateTimeoutStats();
         }, 60000);
 
+        // 初始化
         switchTab('active');
     </script>
 </body>
