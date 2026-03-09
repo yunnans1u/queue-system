@@ -279,6 +279,72 @@
             100% { transform: rotate(360deg); }
         }
         
+        /* 成功提示卡片 */
+        .success-card {
+            background: linear-gradient(135deg, #c6f6d5 0%, #9ae6b4 100%);
+            border-radius: 20px;
+            padding: 20px;
+            margin: 16px 0;
+            border: 2px solid #48bb78;
+            text-align: center;
+            animation: slideIn 0.5s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .success-title {
+            font-size: 28px;
+            font-weight: 800;
+            color: #22543d;
+            margin-bottom: 10px;
+        }
+        
+        .success-number {
+            font-size: 48px;
+            font-weight: 900;
+            color: #276749;
+            background: white;
+            display: inline-block;
+            padding: 10px 30px;
+            border-radius: 60px;
+            margin: 15px 0;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        
+        .success-message {
+            font-size: 18px;
+            color: #22543d;
+            margin: 15px 0;
+            line-height: 1.6;
+        }
+        
+        .success-note {
+            background: white;
+            padding: 15px;
+            border-radius: 16px;
+            margin-top: 15px;
+            font-size: 16px;
+            color: #2d3748;
+        }
+        
+        .success-note p {
+            margin: 8px 0;
+        }
+        
+        .success-note .highlight {
+            color: #48bb78;
+            font-weight: 700;
+        }
+        
         /* 免责声明卡片 */
         .notice-card {
             background: #fff9e6;
@@ -362,6 +428,19 @@
         <h1 id="title">Restaurant Queue</h1>
         <p id="subtitle">Join the queue in seconds</p>
 
+        <!-- 成功提示卡片 (默认隐藏) -->
+        <div id="successCard" class="success-card hidden">
+            <div class="success-title" id="successTitle">✅ 排队成功！</div>
+            <div class="success-number" id="successNumber">A1</div>
+            <div class="success-message" id="successMessage">
+                您的号码已成功登记
+            </div>
+            <div class="success-note" id="successNote">
+                <p>📞 <span class="highlight">当桌子清理完毕，我们会给您打电话</span></p>
+                <p>请保持电话畅通，谢谢您的耐心等待 🙏</p>
+            </div>
+        </div>
+
         <!-- 排队状态卡片 -->
         <div id="queueStatusCard" class="queue-status-card">
             <!-- 加载中提示 -->
@@ -390,6 +469,12 @@
                     </div>
                     
                     <div class="position-text" id="positionText">Your position: 1</div>
+                    
+                    <!-- 温馨提示 -->
+                    <div style="margin-top: 20px; padding: 12px; background: #f0f7ff; border-radius: 16px; font-size: 14px; color: #2c5282;">
+                        <p style="margin: 4px 0;">📞 当桌子准备好，我们会给您打电话</p>
+                        <p style="margin: 4px 0;">🙏 感谢您的耐心等待</p>
+                    </div>
                 </div>
                 
                 <div id="completedQueueStatus" class="hidden">
@@ -508,6 +593,9 @@
                 quickLabel: "⚡ Quick",
                 submitBtn: "Join Queue",
                 success: "Success! Your number is: ",
+                successTitle: "✅ Queue Successful!",
+                successMessage: "Your number has been registered",
+                successNote: "📞 When your table is ready, we will call you\nPlease keep your phone nearby. Thank you for your patience 🙏",
                 error: "Failed. Please try again.",
                 aheadLabel: "people ahead of you",
                 positionText: "Your position: ",
@@ -517,7 +605,8 @@
                 noticeText: "Queue numbers are for reference only and may not be 100% accurate due to network delays, table availability, and our discretion to adjust seating arrangements.",
                 noticeFooter: "We appreciate your understanding and patience 🙏",
                 noQueue: "Join the queue to see your status",
-                loading: "Loading..."
+                loading: "Loading...",
+                waitingNote: "📞 When your table is ready, we will call you\n🙏 Thank you for your patience"
             },
             zh: {
                 title: "餐厅排队",
@@ -533,6 +622,9 @@
                 quickLabel: "⚡ 快速",
                 submitBtn: "加入排队",
                 success: "成功！您的号码是：",
+                successTitle: "✅ 排队成功！",
+                successMessage: "您的号码已成功登记",
+                successNote: "📞 当桌子清理完毕，我们会给您打电话\n请保持电话畅通，谢谢您的耐心等待 🙏",
                 error: "失败，请重试。",
                 aheadLabel: "人在您前面",
                 positionText: "您的位置: ",
@@ -542,7 +634,8 @@
                 noticeText: "排队号码仅供参考，实际等候时间可能因网络延迟、桌位安排及现场调度而有所变动。",
                 noticeFooter: "感谢您的理解与耐心 🙏",
                 noQueue: "加入排队后即可查看状态",
-                loading: "加载中..."
+                loading: "加载中...",
+                waitingNote: "📞 当桌子准备好，我们会给您打电话\n🙏 感谢您的耐心等待"
             },
             ja: {
                 title: "レストラン待ち行列",
@@ -558,6 +651,9 @@
                 quickLabel: "⚡ すぐに",
                 submitBtn: "待ち行列に参加",
                 success: "成功！あなたの番号は：",
+                successTitle: "✅ 待ち行列登録完了！",
+                successMessage: "あなたの番号が登録されました",
+                successNote: "📞 テーブルの準備ができましたら、お電話します\n電話をお近くに置いてお待ちください。🙏",
                 error: "失敗しました。もう一度お試しください。",
                 aheadLabel: "人前で待っています",
                 positionText: "あなたの位置: ",
@@ -567,7 +663,8 @@
                 noticeText: "待ち番号は参考値です。ネットワーク遅延、席の状況、店舗の判断により実際の待ち時間と異なる場合があります。",
                 noticeFooter: "ご理解とご協力に感謝します 🙏",
                 noQueue: "参加すると状況が表示されます",
-                loading: "読み込み中..."
+                loading: "読み込み中...",
+                waitingNote: "📞 テーブルが準備できたらお電話します\n🙏 お待ちいただきありがとうございます"
             },
             ko: {
                 title: "레스토랑 대기열",
@@ -583,6 +680,9 @@
                 quickLabel: "⚡ 빠른 서비스",
                 submitBtn: "대기열 참여",
                 success: "성공! 귀하의 번호는: ",
+                successTitle: "✅ 대기 등록 성공!",
+                successMessage: "귀하의 번호가 등록되었습니다",
+                successNote: "📞 테이블 준비가 완료되면 전화드리겠습니다\n전화를 켜두시기 바랍니다. 기다려 주셔서 감사합니다 🙏",
                 error: "실패했습니다. 다시 시도해주세요.",
                 aheadLabel: "명 앞에서 대기 중",
                 positionText: "귀하의 위치: ",
@@ -592,7 +692,8 @@
                 noticeText: "대기 번호는 참고용입니다. 네트워크 지연, 테이블 상황, 현장 상황에 따라 실제 대기 시간이 다를 수 있습니다.",
                 noticeFooter: "양해와 인내에 감사드립니다 🙏",
                 noQueue: "참여하면 상태가 표시됩니다",
-                loading: "로딩 중..."
+                loading: "로딩 중...",
+                waitingNote: "📞 테이블이 준비되면 전화드리겠습니다\n🙏 기다려 주셔서 감사합니다"
             }
         };
 
@@ -689,11 +790,6 @@
                 });
                 
                 console.log('Queue updated - total:', allQueueData.length);
-                console.log('Queue order:', allQueueData.map((item, index) => ({
-                    position: index + 1,
-                    number: item.queueNumber,
-                    time: item.createdAt
-                })));
                 
                 // 隐藏加载中
                 document.getElementById('loadingMessage').classList.add('hidden');
@@ -722,13 +818,6 @@
                 const aheadCount = userIndex;
                 const totalCount = allQueueData.length;
                 
-                console.log('Position found:', {
-                    number: currentUserQueueNumber,
-                    index: userIndex,
-                    ahead: aheadCount,
-                    position: userIndex + 1
-                });
-                
                 document.getElementById('aheadCount').textContent = aheadCount;
                 document.getElementById('positionText').textContent = 
                     translations[currentLang].positionText + (userIndex + 1);
@@ -744,12 +833,28 @@
                 
             } else {
                 // 用户不在排队中（可能被完成或取消了）
-                console.log('User not found in queue');
                 document.getElementById('noQueueMessage').classList.add('hidden');
                 document.getElementById('hasQueueContent').classList.remove('hidden');
                 document.getElementById('activeQueueStatus').classList.add('hidden');
                 document.getElementById('completedQueueStatus').classList.remove('hidden');
             }
+        }
+
+        // 显示成功卡片
+        function showSuccessCard(queueNumber) {
+            const successCard = document.getElementById('successCard');
+            document.getElementById('successNumber').textContent = queueNumber;
+            successCard.classList.remove('hidden');
+            
+            // 5秒后淡出
+            setTimeout(() => {
+                successCard.style.opacity = '0';
+                successCard.style.transition = 'opacity 1s';
+                setTimeout(() => {
+                    successCard.classList.add('hidden');
+                    successCard.style.opacity = '1';
+                }, 1000);
+            }, 5000);
         }
 
         // 重置为新排队
@@ -784,6 +889,9 @@
             document.getElementById('noticeFooter').textContent = t.noticeFooter;
             document.getElementById('noQueueText').textContent = t.noQueue;
             document.getElementById('loadingText').textContent = t.loading;
+            document.getElementById('successTitle').textContent = t.successTitle;
+            document.getElementById('successMessage').textContent = t.successMessage;
+            document.getElementById('successNote').innerHTML = t.successNote.replace(/\n/g, '<br>');
             
             updateUserQueuePosition();
         }
@@ -834,69 +942,4 @@
             
             try {
                 // 显示加载中
-                document.getElementById('loadingMessage').classList.remove('hidden');
-                document.getElementById('noQueueMessage').classList.add('hidden');
-                document.getElementById('hasQueueContent').classList.add('hidden');
-                
-                // 生成顺序排队号
-                const queueNumber = await generateSequentialQueueNumber();
-                
-                const docRef = await db.collection('queue').add({
-                    queueNumber,
-                    name,
-                    phone: fullPhone,
-                    countryCode,
-                    phoneNumber,
-                    guests,
-                    babyChairCount,
-                    seating,
-                    status: 'waiting',
-                    callCount: 0,
-                    tableNumber: null,
-                    createdAt: new Date().toISOString(),
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                
-                console.log('Queue added:', docRef.id);
-                
-                // 保存当前用户信息
-                currentUserDocId = docRef.id;
-                currentUserQueueNumber = queueNumber;
-                
-                // 显示排队信息
-                document.getElementById('userQueueNumber').textContent = queueNumber;
-                document.getElementById('loadingMessage').classList.add('hidden');
-                
-                showMessage(translations[currentLang].success + queueNumber, 'success');
-                
-                // 重置表单
-                document.getElementById('name').value = '';
-                document.getElementById('phoneNumber').value = '';
-                document.getElementById('guests').value = '2';
-                document.getElementById('babyChairCount').value = '0';
-                document.getElementById('indoor').checked = true;
-                updateFullPhoneDisplay();
-                
-                // 滚动到状态卡片
-                setTimeout(() => {
-                    document.getElementById('queueStatusCard').scrollIntoView({ behavior: 'smooth' });
-                }, 500);
-                
-            } catch (error) {
-                console.error('Error adding queue:', error);
-                document.getElementById('loadingMessage').classList.add('hidden');
-                document.getElementById('noQueueMessage').classList.remove('hidden');
-                showMessage(translations[currentLang].error, 'error');
-            }
-        });
-
-        // 初始化
-        updateUILanguage();
-        updateFullPhoneDisplay();
-        
-        // 显示加载中
-        document.getElementById('loadingMessage').classList.remove('hidden');
-        document.getElementById('noQueueMessage').classList.add('hidden');
-    </script>
-</body>
-</html>
+                document.getElementById('loadingMessage').
