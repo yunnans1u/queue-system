@@ -596,6 +596,80 @@
             }
         };
 
+        // 获取今天的日期字符串
+        function getTodayDateString() {
+            const today = new Date();
+            return `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+        }
+
+        // 获取今天的字母
+        function getTodayLetter() {
+            const today = new Date();
+            const baseDate = new Date(2024, 0, 1);
+            const diffTime = today - baseDate;
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            const letterIndex = diffDays % 26;
+            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            return letters[letterIndex];
+        }
+
+        // 获取今天已发的最大号码
+        async function getTodayMaxNumber() {
+            const today = getTodayDateString();
+            const todayLetter = getTodayLetter();
+            
+            try {
+                // 获取今天的开始和结束时间
+                const startOfDay = new Date();
+                startOfDay.setHours(0, 0, 0, 0);
+                
+                const endOfDay = new Date();
+                endOfDay.setHours(23, 59, 59, 999);
+                
+                // 查询今天的所有订单
+                const snapshot = await db.collection('queue')
+                    .where('createdAt', '>=', startOfDay.toISOString())
+                    .where('createdAt', '<=', endOfDay.toISOString())
+                    .get();
+                
+                let maxNumber = 0;
+                
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    // 只匹配今天的字母
+                    if (data.queueNumber && data.queueNumber.startsWith(todayLetter)) {
+                        const numPart = parseInt(data.queueNumber.substring(1));
+                        if (!isNaN(numPart) && numPart > maxNumber) {
+                            maxNumber = numPart;
+                        }
+                    }
+                });
+                
+                console.log(`Today's max number: ${maxNumber}`);
+                return maxNumber;
+                
+            } catch (error) {
+                console.error('Error getting max number:', error);
+                return 0;
+            }
+        }
+
+        // 生成排队号 - 按顺序递增
+        async function generateSequentialQueueNumber() {
+            const todayLetter = getTodayLetter();
+            const maxNumber = await getTodayMaxNumber();
+            
+            // 下一个数字 = 最大数字 + 1
+            const nextNumber = maxNumber + 1;
+            
+            // 组合成排队号
+            const queueNumber = `${todayLetter}${nextNumber}`;
+            
+            console.log(`Generated sequential number: ${queueNumber} (next: ${nextNumber})`);
+            
+            return queueNumber;
+        }
+
         // 监听所有活跃排队数据 - 实时更新
         db.collection('queue')
             .where('status', 'in', ['waiting', 'confirmed'])
@@ -615,6 +689,11 @@
                 });
                 
                 console.log('Queue updated - total:', allQueueData.length);
+                console.log('Queue order:', allQueueData.map((item, index) => ({
+                    position: index + 1,
+                    number: item.queueNumber,
+                    time: item.createdAt
+                })));
                 
                 // 隐藏加载中
                 document.getElementById('loadingMessage').classList.add('hidden');
@@ -625,32 +704,6 @@
                 console.error('Firebase error:', error);
                 document.getElementById('loadingMessage').innerHTML = '连接失败，请刷新页面';
             });
-
-        // 生成排队号 - 格式：字母 + 数字 (A1-999)
-        function generateQueueNumber() {
-            // 获取今天的日期
-            const today = new Date();
-            
-            // 使用基准日期（2024-01-01）来计算天数差，决定今天的字母
-            const baseDate = new Date(2024, 0, 1); // 2024年1月1日
-            const diffTime = today - baseDate;
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-            
-            // 天数差 mod 26 决定今天的字母 (0-25 -> A-Z)
-            const letterIndex = diffDays % 26;
-            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-            const todayLetter = letters[letterIndex];
-            
-            // 生成随机数字（1-999）
-            const randomNum = Math.floor(Math.random() * 999) + 1;
-            
-            // 组合成最终排队号
-            const queueNumber = `${todayLetter}${randomNum}`;
-            
-            console.log(`今日字母: ${todayLetter} (第${diffDays}天), 排队号: ${queueNumber}`);
-            
-            return queueNumber;
-        }
 
         // 更新用户的排队位置
         function updateUserQueuePosition() {
@@ -669,6 +722,13 @@
                 const aheadCount = userIndex;
                 const totalCount = allQueueData.length;
                 
+                console.log('Position found:', {
+                    number: currentUserQueueNumber,
+                    index: userIndex,
+                    ahead: aheadCount,
+                    position: userIndex + 1
+                });
+                
                 document.getElementById('aheadCount').textContent = aheadCount;
                 document.getElementById('positionText').textContent = 
                     translations[currentLang].positionText + (userIndex + 1);
@@ -684,7 +744,7 @@
                 
             } else {
                 // 用户不在排队中（可能被完成或取消了）
-                // 显示完成状态
+                console.log('User not found in queue');
                 document.getElementById('noQueueMessage').classList.add('hidden');
                 document.getElementById('hasQueueContent').classList.remove('hidden');
                 document.getElementById('activeQueueStatus').classList.add('hidden');
@@ -772,13 +832,14 @@
                 return;
             }
             
-            const queueNumber = generateQueueNumber();
-            
             try {
                 // 显示加载中
                 document.getElementById('loadingMessage').classList.remove('hidden');
                 document.getElementById('noQueueMessage').classList.add('hidden');
                 document.getElementById('hasQueueContent').classList.add('hidden');
+                
+                // 生成顺序排队号
+                const queueNumber = await generateSequentialQueueNumber();
                 
                 const docRef = await db.collection('queue').add({
                     queueNumber,
