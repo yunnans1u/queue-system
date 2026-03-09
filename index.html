@@ -942,4 +942,70 @@
             
             try {
                 // 显示加载中
-                document.getElementById('loadingMessage').
+                document.getElementById('loadingMessage').classList.remove('hidden');
+                document.getElementById('noQueueMessage').classList.add('hidden');
+                document.getElementById('hasQueueContent').classList.add('hidden');
+                
+                // 生成顺序排队号
+                const queueNumber = await generateSequentialQueueNumber();
+                
+                const docRef = await db.collection('queue').add({
+                    queueNumber,
+                    name,
+                    phone: fullPhone,
+                    countryCode,
+                    phoneNumber,
+                    guests,
+                    babyChairCount,
+                    seating,
+                    status: 'waiting',
+                    callCount: 0,
+                    tableNumber: null,
+                    createdAt: new Date().toISOString(),
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                console.log('Queue added:', docRef.id);
+                
+                // 保存当前用户信息
+                currentUserDocId = docRef.id;
+                currentUserQueueNumber = queueNumber;
+                
+                // 显示排队信息
+                document.getElementById('userQueueNumber').textContent = queueNumber;
+                document.getElementById('loadingMessage').classList.add('hidden');
+                
+                // 显示成功卡片
+                showSuccessCard(queueNumber);
+                
+                // 重置表单
+                document.getElementById('name').value = '';
+                document.getElementById('phoneNumber').value = '';
+                document.getElementById('guests').value = '2';
+                document.getElementById('babyChairCount').value = '0';
+                document.getElementById('indoor').checked = true;
+                updateFullPhoneDisplay();
+                
+                // 滚动到成功卡片
+                setTimeout(() => {
+                    document.getElementById('successCard').scrollIntoView({ behavior: 'smooth' });
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error adding queue:', error);
+                document.getElementById('loadingMessage').classList.add('hidden');
+                document.getElementById('noQueueMessage').classList.remove('hidden');
+                showMessage(translations[currentLang].error, 'error');
+            }
+        });
+
+        // 初始化
+        updateUILanguage();
+        updateFullPhoneDisplay();
+        
+        // 显示加载中
+        document.getElementById('loadingMessage').classList.remove('hidden');
+        document.getElementById('noQueueMessage').classList.add('hidden');
+    </script>
+</body>
+</html>
