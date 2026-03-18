@@ -1,179 +1,1453 @@
-// 打开统计弹窗
-window.openStatsModal = function() {
-    const modal = document.getElementById('statsModal');
-    modal.classList.add('active');
-    loadStatsData();
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Queue Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            padding: 10px;
+        }
+        
+        .admin-container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            padding: 16px;
+            border-radius: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 4px;
+            font-size: 22px;
+        }
+        
+        h2 {
+            color: #666;
+            font-size: 14px;
+            font-weight: normal;
+            margin-bottom: 20px;
+        }
+        
+        /* 统计按钮样式 */
+        .stats-btn {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            padding: 14px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
+            transition: all 0.3s;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .stats-btn:hover {
+            background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
+        }
+        
+        .stats-btn:active {
+            transform: translateY(0);
+        }
+        
+        .stats-btn::before {
+            content: "📊";
+            font-size: 20px;
+        }
+        
+        /* 弹窗样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .modal.active {
+            display: block;
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 3% auto;
+            padding: 25px;
+            border-radius: 30px;
+            width: 95%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+            animation: slideIn 0.4s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .close {
+            color: #94a3b8;
+            float: right;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s;
+            line-height: 1;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: #f1f5f9;
+        }
+        
+        .close:hover {
+            color: #ef4444;
+            background: #fee2e2;
+        }
+        
+        .stats-header {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #e2e8f0;
+        }
+        
+        .stats-header h3 {
+            font-size: 28px;
+            color: #1e293b;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .stats-header h3::before {
+            content: "📈";
+            font-size: 32px;
+        }
+        
+        .stats-header p {
+            color: #64748b;
+            font-size: 15px;
+            background: #f8fafc;
+            padding: 10px 15px;
+            border-radius: 40px;
+            display: inline-block;
+        }
+        
+        .stats-date-group {
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+            transition: all 0.2s;
+        }
+        
+        .stats-date-group:hover {
+            box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+            border-color: #cbd5e0;
+        }
+        
+        .stats-date {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f1f5f9;
+            padding: 8px 16px;
+            border-radius: 40px;
+            width: fit-content;
+        }
+        
+        .stats-date::before {
+            content: "📅";
+            font-size: 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .stats-item {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 18px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+            transition: all 0.2s;
+        }
+        
+        .stats-item:hover {
+            background: #f1f5f9;
+        }
+        
+        .stats-label {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .stats-value {
+            font-size: 28px;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1.2;
+        }
+        
+        .stats-peak {
+            border-left: 6px solid #ef4444;
+            background: #fef2f2;
+        }
+        
+        .stats-peak .stats-label::before {
+            content: "⏰";
+            margin-right: 4px;
+        }
+        
+        .stats-offpeak {
+            border-left: 6px solid #48bb78;
+            background: #f0fdf4;
+        }
+        
+        .stats-offpeak .stats-label::before {
+            content: "🌿";
+            margin-right: 4px;
+        }
+        
+        .stats-time-note {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px dashed #cbd5e0;
+        }
+        
+        .stats-detail-toggle {
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 40px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: all 0.2s;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .stats-detail-toggle:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+        
+        .stats-detail-toggle::after {
+            content: "▼";
+            font-size: 12px;
+            transition: transform 0.3s;
+        }
+        
+        .stats-detail-toggle.active::after {
+            transform: rotate(180deg);
+        }
+        
+        .stats-detail {
+            display: none;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px dashed #cbd5e0;
+        }
+        
+        .stats-detail.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        
+        .stats-table th {
+            background: #1e293b;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        .stats-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e2e8f0;
+            background: white;
+        }
+        
+        .stats-table tr:hover td {
+            background: #f8fafc;
+        }
+        
+        .stats-table .good-wait {
+            color: #48bb78;
+            font-weight: 600;
+        }
+        
+        .stats-table .long-wait {
+            color: #ef4444;
+            font-weight: 600;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 50px 20px;
+            color: #94a3b8;
+            font-size: 16px;
+            background: #f8fafc;
+            border-radius: 30px;
+        }
+        
+        .no-data::before {
+            content: "📭";
+            display: block;
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .stats-footer {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 3px solid #e2e8f0;
+            text-align: center;
+            color: #64748b;
+            font-size: 13px;
+        }
+        
+        .stats-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        .stats-export-btn {
+            flex: 1;
+            background: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 40px;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .stats-export-btn:hover {
+            background: #3182ce;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(66, 153, 225, 0.3);
+        }
+        
+        .stats-export-btn::before {
+            content: "📥";
+            font-size: 18px;
+        }
+        
+        .tab-container {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            background: #f0f2f5;
+            padding: 4px;
+            border-radius: 30px;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 12px 0;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            background: transparent;
+            font-size: 15px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.2s;
+        }
+        
+        .tab-btn.active {
+            background: white;
+            color: #667eea;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .search-container {
+            margin-bottom: 20px;
+        }
+        
+        .search-container input {
+            width: 100%;
+            padding: 14px 18px;
+            border: 1px solid #ddd;
+            border-radius: 30px;
+            font-size: 15px;
+            background: #f8f9fa;
+        }
+        
+        .queue-list {
+            display: none;
+        }
+        
+        .queue-list.active {
+            display: block;
+        }
+        
+        .queue-items {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .queue-card {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 20px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            border-left: 5px solid #667eea;
+            transition: all 0.2s;
+        }
+        
+        .queue-card.timeout-warning {
+            border-left: 8px solid #f56565;
+            background: #fff5f5;
+            box-shadow: 0 0 0 2px #fed7d7, 0 4px 12px rgba(245, 101, 101, 0.2);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 #fed7d7, 0 4px 12px rgba(245, 101, 101, 0.2);
+            }
+            70% {
+                box-shadow: 0 0 0 6px #fed7d7, 0 4px 12px rgba(245, 101, 101, 0.2);
+            }
+            100% {
+                box-shadow: 0 0 0 0 #fed7d7, 0 4px 12px rgba(245, 101, 101, 0.2);
+            }
+        }
+        
+        .timeout-badge {
+            background: #f56565;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 10px;
+            animation: blink 1.5s infinite;
+        }
+        
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        .timeout-badge::before {
+            content: "⏰";
+            font-size: 14px;
+        }
+        
+        .wait-time {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #e2e8f0;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #4a5568;
+        }
+        
+        .wait-time.warning {
+            background: #fed7d7;
+            color: #c53030;
+            font-weight: 600;
+        }
+        
+        .queue-card.completed {
+            border-left-color: #48bb78;
+            opacity: 0.8;
+        }
+        
+        .queue-card.cancelled {
+            border-left-color: #f56565;
+            opacity: 0.7;
+        }
+        
+        .queue-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .queue-number {
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            background: #667eea;
+            padding: 6px 16px;
+            border-radius: 30px;
+            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+        }
+        
+        .queue-time {
+            color: #999;
+            font-size: 12px;
+            background: #f5f5f5;
+            padding: 4px 10px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .main-info {
+            background: #f8faff;
+            padding: 12px;
+            border-radius: 16px;
+            margin-bottom: 12px;
+            border: 1px solid #e0e7ff;
+        }
+        
+        .name-large {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .name-large::before {
+            content: "👤";
+            font-size: 20px;
+        }
+        
+        .details-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin-top: 8px;
+        }
+        
+        .guest-count {
+            background: #48bb78;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .guest-count::before {
+            content: "👥";
+            font-size: 16px;
+        }
+        
+        .seating-badge {
+            background: #4299e1;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .seating-badge.indoor::before {
+            content: "🏠";
+        }
+        
+        .seating-badge.outdoor::before {
+            content: "🌳";
+        }
+        
+        .seating-badge.quick::before {
+            content: "⚡";
+        }
+        
+        .table-badge {
+            background: #ed8936;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 30px;
+            font-size: 20px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 2px solid #fbd38d;
+        }
+        
+        .table-badge::before {
+            content: "🪑";
+            font-size: 18px;
+        }
+        
+        .secondary-info {
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 16px;
+            margin-bottom: 12px;
+        }
+        
+        .info-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+        
+        .phone-link {
+            color: #4299e1;
+            text-decoration: none;
+            font-weight: 600;
+            background: #e6f0ff;
+            padding: 6px 14px;
+            border-radius: 30px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        
+        .phone-link:hover {
+            background: #d4e4ff;
+        }
+        
+        .phone-link::before {
+            content: "📞";
+        }
+        
+        .call-badge {
+            background: #48bb78;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        
+        .preferences {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 8px 0;
+        }
+        
+        .preference-tag {
+            background: #e2e8f0;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 14px;
+            color: #4a5568;
+            font-weight: 500;
+        }
+        
+        .preference-tag.baby {
+            background: #fbb6ce;
+            color: #97266d;
+        }
+        
+        .preference-tag.baby::before {
+            content: "👶 ";
+        }
+        
+        .queue-card-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .action-btn {
+            border: none;
+            border-radius: 40px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 12px 16px;
+            flex: 1;
+            min-width: 70px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+        }
+        
+        .action-btn:active {
+            transform: scale(0.97);
+        }
+        
+        .call-btn {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .confirm-btn {
+            background: #4299e1;
+            color: white;
+        }
+        
+        .cancel-btn {
+            background: #f56565;
+            color: white;
+        }
+        
+        .complete-btn {
+            background: #48bb78;
+            color: white;
+        }
 
-// 关闭统计弹窗
-window.closeStatsModal = function() {
-    const modal = document.getElementById('statsModal');
-    modal.classList.remove('active');
-}
+        .timeout-stats {
+            background: #fff5f5;
+            border: 2px solid #f56565;
+            border-radius: 20px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        
+        .timeout-count {
+            font-size: 24px;
+            font-weight: 800;
+            color: #c53030;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .timeout-count::before {
+            content: "⏰";
+            font-size: 28px;
+        }
+        
+        .timeout-message {
+            color: #742a2a;
+            font-weight: 500;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        @media (max-width: 380px) {
+            .name-large {
+                font-size: 20px;
+            }
+            
+            .guest-count, .seating-badge, .table-badge {
+                font-size: 16px;
+                padding: 6px 12px;
+            }
+            
+            .action-btn {
+                padding: 10px 8px;
+                font-size: 13px;
+            }
+            
+            .timeout-count {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <h1>Queue Admin</h1>
+        <h2>排队管理 · 实时更新</h2>
 
-// 点击弹窗外部关闭
-window.onclick = function(event) {
-    const modal = document.getElementById('statsModal');
-    if (event.target === modal) {
-        closeStatsModal();
-    }
-}
+        <!-- 统计按钮 -->
+        <button onclick="openStatsModal()" class="stats-btn">
+            查看排队统计数据
+        </button>
 
-// 加载统计数据
-function loadStatsData() {
-    const content = document.getElementById('statsContent');
-    const stats = getQueueStatistics();
-    
-    if (Object.keys(stats).length === 0) {
-        content.innerHTML = '<div class="no-data">暂无数据，等待顾客完成订单后自动记录 📝</div>';
-        return;
-    }
-    
-    let html = '';
-    
-    // 按日期排序（最新的在前面）
-    const sortedDates = Object.keys(stats).sort().reverse();
-    
-    sortedDates.forEach(date => {
-        const dayData = stats[date];
-        html += `
-            <div class="stats-date-group">
-                <div class="stats-date">${date}</div>
+        <!-- 统计弹窗 -->
+        <div id="statsModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeStatsModal()">&times;</span>
                 
-                <div class="stats-grid">
-                    <div class="stats-item">
-                        <div class="stats-label">总订单数</div>
-                        <div class="stats-value">${dayData.totalOrders}</div>
-                    </div>
-                    <div class="stats-item">
-                        <div class="stats-label">平均等待</div>
-                        <div class="stats-value">${dayData.averageWait}分钟</div>
-                    </div>
+                <div class="stats-header">
+                    <h3>排队统计数据</h3>
+                    <p>过去7天的实际等待时间分析</p>
                 </div>
                 
-                <div class="stats-grid">
-                    <div class="stats-item stats-peak">
-                        <div class="stats-label">⏰ 高峰时段</div>
-                        <div class="stats-value">${dayData.peakHourAvg}分钟</div>
-                        <div style="font-size:12px; color:#718096;">12-2pm, 5:30-9pm</div>
-                    </div>
-                    <div class="stats-item stats-offpeak">
-                        <div class="stats-label">🌿 非高峰</div>
-                        <div class="stats-value">${dayData.offPeakAvg}分钟</div>
-                    </div>
+                <div id="statsContent">
+                    <!-- 统计数据会动态显示在这里 -->
+                    <div class="no-data">加载中...</div>
                 </div>
                 
-                <button class="stats-detail-toggle" onclick="toggleDetail('${date}')">
-                    查看详细订单
-                </button>
-                
-                <div id="detail-${date}" class="stats-detail">
-                    <table class="stats-table">
-                        <thead>
-                            <tr>
-                                <th>排队号</th>
-                                <th>预估</th>
-                                <th>实际</th>
-                                <th>时段</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${dayData.data.map(order => `
-                                <tr>
-                                    <td>${order.queueNumber}</td>
-                                    <td>${order.estimatedWaitTime}分钟</td>
-                                    <td style="color: ${order.actualWaitTime > order.estimatedWaitTime + 5 ? '#f56565' : '#48bb78'}; font-weight:600;">
-                                        ${order.actualWaitTime}分钟
-                                    </td>
-                                    <td>${order.peakHour ? '⏰高峰' : '🌿平峰'}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
+                <div class="stats-footer">
+                    <p>数据来自顾客端本地存储 • 基于实际用餐时间 • 每日更新</p>
                 </div>
             </div>
-        `;
-    });
-    
-    // 添加导出按钮
-    html += `
-        <div class="stats-actions">
-            <button class="stats-export-btn" onclick="exportStats()">
-                📥 导出为CSV
-            </button>
         </div>
-    `;
-    
-    content.innerHTML = html;
-}
 
-// 切换详细订单显示
-window.toggleDetail = function(date) {
-    const detail = document.getElementById(`detail-${date}`);
-    detail.classList.toggle('show');
-}
+        <!-- 超时统计栏 -->
+        <div id="timeoutStats" class="timeout-stats hidden">
+            <div class="timeout-count" id="timeoutCount">0</div>
+            <div class="timeout-message" id="timeoutMessage">顾客等待超过30分钟，请优先安排！</div>
+        </div>
 
-// 获取统计数据（从localStorage读取）
-window.getQueueStatistics = function() {
-    const stats = {};
-    const today = new Date();
+        <div class="tab-container">
+            <button class="tab-btn active" onclick="switchTab('active')">📋 当前排队</button>
+            <button class="tab-btn" onclick="switchTab('completed')">✅ 已完成</button>
+        </div>
+
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="🔍 搜索姓名或电话..." onkeyup="searchQueue()">
+        </div>
+
+        <div id="activeQueue" class="queue-list active">
+            <div id="activeQueueList" class="queue-items"></div>
+        </div>
+
+        <div id="completedQueue" class="queue-list">
+            <div id="completedQueueList" class="queue-items"></div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     
-    for (let i = 0; i < 7; i++) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAJraomK-asIvvZVVthnHOuYtu43wViqxE",
+            authDomain: "queue-system-b3d37.firebaseapp.com",
+            projectId: "queue-system-b3d37",
+            storageBucket: "queue-system-b3d37.firebasestorage.app",
+            messagingSenderId: "310070213969",
+            appId: "1:310070213969:web:830f5933d2ed13cd5ee770"
+        };
+
+        // 初始化 Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let currentTab = 'active';
+        let activeQueue = [];
+        let completedQueue = [];
+
+        // ========== 统计相关函数 ==========
         
-        const dayData = JSON.parse(localStorage.getItem(`queue_data_${dateStr}`) || '[]');
-        
-        if (dayData.length > 0) {
-            const peakWaitTimes = dayData.filter(d => d.peakHour).map(d => d.actualWaitTime);
-            const offPeakWaitTimes = dayData.filter(d => !d.peakHour).map(d => d.actualWaitTime);
-            
-            stats[dateStr] = {
-                totalOrders: dayData.length,
-                averageWait: Math.round(dayData.reduce((sum, d) => sum + d.actualWaitTime, 0) / dayData.length),
-                peakHourAvg: peakWaitTimes.length ? Math.round(peakWaitTimes.reduce((sum, t) => sum + t, 0) / peakWaitTimes.length) : 0,
-                offPeakAvg: offPeakWaitTimes.length ? Math.round(offPeakWaitTimes.reduce((sum, t) => sum + t, 0) / offPeakWaitTimes.length) : 0,
-                data: dayData
-            };
+        // 打开统计弹窗
+        window.openStatsModal = function() {
+            const modal = document.getElementById('statsModal');
+            modal.classList.add('active');
+            loadStatsData();
         }
-    }
-    
-    return stats;
-}
 
-// 导出为CSV
-window.exportStats = function() {
-    const stats = getQueueStatistics();
-    let csv = '日期,排队号,预估时间,实际时间,时段\n';
-    
-    Object.keys(stats).forEach(date => {
-        stats[date].data.forEach(order => {
-            csv += `${date},${order.queueNumber},${order.estimatedWaitTime},${order.actualWaitTime},${order.peakHour ? '高峰' : '平峰'}\n`;
-        });
-    });
-    
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `queue_stats_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
+        // 关闭统计弹窗
+        window.closeStatsModal = function() {
+            const modal = document.getElementById('statsModal');
+            modal.classList.remove('active');
+        }
 
-// 自动清理旧数据（保留7天）
-function cleanOldStats() {
-    const today = new Date();
-    for (let i = 7; i <= 30; i++) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
-        localStorage.removeItem(`queue_data_${dateStr}`);
-    }
-}
+        // 点击弹窗外部关闭
+        window.onclick = function(event) {
+            const modal = document.getElementById('statsModal');
+            if (event.target === modal) {
+                closeStatsModal();
+            }
+        }
 
-// 每天执行一次清理
-setInterval(cleanOldStats, 24 * 60 * 60 * 1000);
+        // 加载统计数据
+        function loadStatsData() {
+            const content = document.getElementById('statsContent');
+            const stats = getQueueStatistics();
+            
+            if (Object.keys(stats).length === 0) {
+                content.innerHTML = '<div class="no-data">暂无数据，等待顾客完成订单后自动记录 📝</div>';
+                return;
+            }
+            
+            let html = '';
+            
+            // 按日期排序（最新的在前面）
+            const sortedDates = Object.keys(stats).sort().reverse();
+            
+            sortedDates.forEach(date => {
+                const dayData = stats[date];
+                html += `
+                    <div class="stats-date-group">
+                        <div class="stats-date">${date}</div>
+                        
+                        <div class="stats-grid">
+                            <div class="stats-item">
+                                <div class="stats-label">📊 总订单数</div>
+                                <div class="stats-value">${dayData.totalOrders}</div>
+                            </div>
+                            <div class="stats-item">
+                                <div class="stats-label">⏱️ 平均等待</div>
+                                <div class="stats-value">${dayData.averageWait}分钟</div>
+                            </div>
+                        </div>
+                        
+                        <div class="stats-grid">
+                            <div class="stats-item stats-peak">
+                                <div class="stats-label">高峰时段</div>
+                                <div class="stats-value">${dayData.peakHourAvg}分钟</div>
+                                <div class="stats-time-note">12:00-14:00 • 17:30-21:00</div>
+                            </div>
+                            <div class="stats-item stats-offpeak">
+                                <div class="stats-label">非高峰时段</div>
+                                <div class="stats-value">${dayData.offPeakAvg}分钟</div>
+                                <div class="stats-time-note">其他时段</div>
+                            </div>
+                        </div>
+                        
+                        <button class="stats-detail-toggle" onclick="toggleDetail('${date}')">
+                            查看详细订单 (${dayData.data.length}条)
+                        </button>
+                        
+                        <div id="detail-${date}" class="stats-detail">
+                            <table class="stats-table">
+                                <thead>
+                                    <tr>
+                                        <th>排队号</th>
+                                        <th>预估</th>
+                                        <th>实际</th>
+                                        <th>时段</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${dayData.data.map(order => {
+                                        const isGood = order.actualWaitTime <= order.estimatedWaitTime + 5;
+                                        return `
+                                            <tr>
+                                                <td><strong>${order.queueNumber}</strong></td>
+                                                <td>${order.estimatedWaitTime}分钟</td>
+                                                <td class="${isGood ? 'good-wait' : 'long-wait'}">
+                                                    ${order.actualWaitTime}分钟
+                                                    ${!isGood ? '⚠️' : ''}
+                                                </td>
+                                                <td>${order.peakHour ? '⏰高峰' : '🌿平峰'}</td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            // 添加导出按钮
+            html += `
+                <div class="stats-actions">
+                    <button class="stats-export-btn" onclick="exportStats()">
+                        导出为CSV文件
+                    </button>
+                </div>
+            `;
+            
+            content.innerHTML = html;
+        }
+
+        // 切换详细订单显示
+        window.toggleDetail = function(date) {
+            const detail = document.getElementById(`detail-${date}`);
+            const button = event.target;
+            detail.classList.toggle('show');
+            button.classList.toggle('active');
+        }
+
+        // 获取统计数据（从localStorage读取）
+        window.getQueueStatistics = function() {
+            const stats = {};
+            const today = new Date();
+            
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                
+                const dayData = JSON.parse(localStorage.getItem(`queue_data_${dateStr}`) || '[]');
+                
+                if (dayData.length > 0) {
+                    const peakWaitTimes = dayData.filter(d => d.peakHour).map(d => d.actualWaitTime);
+                    const offPeakWaitTimes = dayData.filter(d => !d.peakHour).map(d => d.actualWaitTime);
+                    
+                    stats[dateStr] = {
+                        totalOrders: dayData.length,
+                        averageWait: Math.round(dayData.reduce((sum, d) => sum + d.actualWaitTime, 0) / dayData.length),
+                        peakHourAvg: peakWaitTimes.length ? Math.round(peakWaitTimes.reduce((sum, t) => sum + t, 0) / peakWaitTimes.length) : 0,
+                        offPeakAvg: offPeakWaitTimes.length ? Math.round(offPeakWaitTimes.reduce((sum, t) => sum + t, 0) / offPeakWaitTimes.length) : 0,
+                        data: dayData
+                    };
+                }
+            }
+            
+            return stats;
+        }
+
+        // 导出为CSV
+        window.exportStats = function() {
+            const stats = getQueueStatistics();
+            let csv = '日期,排队号,预估时间(分钟),实际时间(分钟),时段\n';
+            
+            Object.keys(stats).forEach(date => {
+                stats[date].data.forEach(order => {
+                    csv += `${date},${order.queueNumber},${order.estimatedWaitTime},${order.actualWaitTime},${order.peakHour ? '高峰' : '平峰'}\n`;
+                });
+            });
+            
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' }); // 添加BOM处理中文
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `queue_stats_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // 自动清理旧数据（保留7天）
+        function cleanOldStats() {
+            const today = new Date();
+            for (let i = 7; i <= 30; i++) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                localStorage.removeItem(`queue_data_${dateStr}`);
+            }
+        }
+
+        // 每天执行一次清理
+        setInterval(cleanOldStats, 24 * 60 * 60 * 1000);
+        
+        // ================================
+
+        // 计算等待时间（分钟）
+        function calculateWaitMinutes(createdAt) {
+            const createdTime = new Date(createdAt).getTime();
+            const nowTime = new Date().getTime();
+            const diffMinutes = Math.floor((nowTime - createdTime) / (1000 * 60));
+            return diffMinutes;
+        }
+
+        // 检查是否超过30分钟
+        function isOver30Minutes(createdAt) {
+            return calculateWaitMinutes(createdAt) >= 30;
+        }
+
+        // 格式化等待时间显示
+        function formatWaitTime(createdAt) {
+            const minutes = calculateWaitMinutes(createdAt);
+            if (minutes < 60) {
+                return `${minutes}分钟`;
+            } else {
+                const hours = Math.floor(minutes / 60);
+                const remainingMinutes = minutes % 60;
+                return `${hours}小时${remainingMinutes}分钟`;
+            }
+        }
+
+        // 更新超时统计
+        function updateTimeoutStats() {
+            const timeoutCount = activeQueue.filter(item => 
+                isOver30Minutes(item.createdAt)
+            ).length;
+            
+            const timeoutStats = document.getElementById('timeoutStats');
+            const timeoutCountEl = document.getElementById('timeoutCount');
+            
+            if (timeoutCount > 0) {
+                timeoutCountEl.textContent = `⏰ ${timeoutCount}位顾客等待超过30分钟`;
+                timeoutStats.classList.remove('hidden');
+            } else {
+                timeoutStats.classList.add('hidden');
+            }
+        }
+
+        // 监听实时更新
+        db.collection('queue')
+            .orderBy('timestamp', 'asc')
+            .onSnapshot((snapshot) => {
+                activeQueue = [];
+                completedQueue = [];
+                
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    data.id = doc.id;
+                    
+                    if (data.status === 'waiting' || data.status === 'confirmed') {
+                        activeQueue.push(data);
+                    } else {
+                        completedQueue.push(data);
+                    }
+                });
+                
+                activeQueue.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+                completedQueue.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                
+                renderActiveQueue();
+                renderCompletedQueue();
+                updateTimeoutStats();
+            });
+
+        // 切换标签
+        window.switchTab = function(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.queue-list').forEach(list => list.classList.remove('active'));
+            
+            if (tab === 'active') {
+                document.querySelector('.tab-btn:first-child').classList.add('active');
+                document.getElementById('activeQueue').classList.add('active');
+            } else {
+                document.querySelector('.tab-btn:last-child').classList.add('active');
+                document.getElementById('completedQueue').classList.add('active');
+            }
+        }
+
+        // 搜索功能
+        window.searchQueue = function() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            if (currentTab === 'active') {
+                const filtered = activeQueue.filter(item => 
+                    item.name?.toLowerCase().includes(searchTerm) || 
+                    item.phone?.includes(searchTerm) ||
+                    item.queueNumber?.includes(searchTerm)
+                );
+                renderActiveQueue(filtered);
+            } else {
+                const filtered = completedQueue.filter(item => 
+                    item.name?.toLowerCase().includes(searchTerm) || 
+                    item.phone?.includes(searchTerm) ||
+                    item.queueNumber?.includes(searchTerm)
+                );
+                renderCompletedQueue(filtered);
+            }
+        }
+
+        // 拨打电话
+        window.makeCall = function(phoneNumber) {
+            const cleanNumber = phoneNumber.replace(/\s/g, '');
+            window.location.href = `tel:${cleanNumber}`;
+        }
+
+        // 拨打并记录次数
+        window.callCustomer = async function(id, currentCount, phoneNumber) {
+            try {
+                window.makeCall(phoneNumber);
+                await db.collection('queue').doc(id).update({
+                    callCount: (currentCount || 0) + 1
+                });
+            } catch (error) {
+                console.error(error);
+                alert('记录拨打次数失败');
+            }
+        }
+
+        // 确认订单
+        window.confirmOrder = function(id) {
+            const tableNumber = prompt('请输入桌号 / Enter table number:');
+            if (tableNumber) {
+                db.collection('queue').doc(id).update({
+                    status: 'confirmed',
+                    tableNumber: tableNumber
+                }).then(() => {
+                    alert(`✅ 订单已确认，桌号: ${tableNumber}`);
+                }).catch(error => {
+                    console.error('Error confirming order:', error);
+                    alert('❌ 确认失败，请重试');
+                });
+            }
+        }
+
+        // 取消订单（带确认）
+        window.cancelOrder = function(id) {
+            if (confirm('❌ 确定取消此订单？\n取消后将移到已取消列表。')) {
+                db.collection('queue').doc(id).update({
+                    status: 'cancelled',
+                    completedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }).then(() => {
+                    alert('订单已取消');
+                }).catch(error => {
+                    console.error('Error cancelling order:', error);
+                    alert('❌ 操作失败，请重试');
+                });
+            }
+        }
+
+        // 完成订单（带确认）
+        window.completeOrder = function(id) {
+            if (confirm('✅ 确认完成此订单？\n确定后订单将移到已完成列表。')) {
+                db.collection('queue').doc(id).update({
+                    status: 'completed',
+                    completedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }).then(() => {
+                    // 可选：显示成功提示
+                }).catch(error => {
+                    console.error('Error completing order:', error);
+                    alert('❌ 操作失败，请重试');
+                });
+            }
+        }
+
+        // 渲染活跃队列
+        function renderActiveQueue(queueData = activeQueue) {
+            const container = document.getElementById('activeQueueList');
+            if (queueData.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:30px;color:#999;">暂无排队订单</div>';
+                return;
+            }
+            
+            container.innerHTML = queueData.map(item => {
+                const seatingClass = item.seating === 'indoor' ? 'indoor' : item.seating === 'outdoor' ? 'outdoor' : 'quick';
+                const waitMinutes = calculateWaitMinutes(item.createdAt);
+                const over30 = waitMinutes >= 30;
+                const timeoutClass = over30 ? 'timeout-warning' : '';
+                const waitTimeClass = over30 ? 'warning' : '';
+                
+                return `
+                <div class="queue-card ${timeoutClass}">
+                    <div class="queue-card-header">
+                        <span class="queue-number">#${item.queueNumber}</span>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <span class="queue-time wait-time ${waitTimeClass}">
+                                ⏱️ ${formatWaitTime(item.createdAt)}
+                                ${over30 ? '⚠️ 超时' : ''}
+                            </span>
+                            <span class="queue-time">${new Date(item.createdAt).toLocaleTimeString()}</span>
+                        </div>
+                    </div>
+                    
+                    ${over30 ? '<span class="timeout-badge">超过30分钟</span>' : ''}
+                    
+                    <!-- 主要信息 - 大号显示 -->
+                    <div class="main-info">
+                        <div class="name-large">
+                            ${item.name}
+                            ${over30 ? '🔴' : ''}
+                        </div>
+                        
+                        <div class="details-row">
+                            <span class="guest-count">${item.guests} 人</span>
+                            
+                            <span class="seating-badge ${seatingClass}">
+                                ${item.seating === 'indoor' ? '室内' : item.seating === 'outdoor' ? '室外' : '快速'}
+                            </span>
+                            
+                            ${item.tableNumber ? 
+                                `<span class="table-badge">${item.tableNumber}</span>` : 
+                                ''}
+                        </div>
+                    </div>
+                    
+                    <!-- 次要信息 -->
+                    <div class="secondary-info">
+                        <div class="info-row">
+                            <a href="javascript:void(0)" onclick="makeCall('${item.phone}')" class="phone-link">
+                                ${item.phone}
+                            </a>
+                            ${item.callCount > 0 ? 
+                                `<span class="call-badge">已拨打 ${item.callCount} 次</span>` : 
+                                ''}
+                        </div>
+                        
+                        <div class="preferences">
+                            ${item.babyChairCount > 0 ? 
+                                `<span class="preference-tag baby">宝宝椅 ${item.babyChairCount}张</span>` : 
+                                ''}
+                        </div>
+                    </div>
+                    
+                    <!-- 按钮区域 -->
+                    <div class="queue-card-actions">
+                        <button class="action-btn call-btn" onclick="callCustomer('${item.id}', ${item.callCount || 0}, '${item.phone}')">
+                            📞 拨打
+                        </button>
+                        <button class="action-btn confirm-btn" onclick="confirmOrder('${item.id}')">
+                            ✅ 确认
+                        </button>
+                        <button class="action-btn cancel-btn" onclick="cancelOrder('${item.id}')">
+                            ❌ 取消
+                        </button>
+                        <button class="action-btn complete-btn" onclick="completeOrder('${item.id}')">
+                            ✓ 完成
+                        </button>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        // 渲染完成队列
+        function renderCompletedQueue(queueData = completedQueue) {
+            const container = document.getElementById('completedQueueList');
+            if (queueData.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:30px;color:#999;">暂无已完成订单</div>';
+                return;
+            }
+            
+            container.innerHTML = queueData.map(item => {
+                const statusClass = item.status === 'completed' ? 'completed' : 'cancelled';
+                const seatingClass = item.seating === 'indoor' ? 'indoor' : item.seating === 'outdoor' ? 'outdoor' : 'quick';
+                
+                return `
+                <div class="queue-card ${statusClass}">
+                    <div class="queue-card-header">
+                        <span class="queue-number">#${item.queueNumber}</span>
+                        <span class="queue-time">${new Date(item.createdAt).toLocaleString()}</span>
+                    </div>
+                    
+                    <!-- 主要信息 - 大号显示 -->
+                    <div class="main-info">
+                        <div class="name-large">${item.name}</div>
+                        
+                        <div class="details-row">
+                            <span class="guest-count">${item.guests} 人</span>
+                            
+                            <span class="seating-badge ${seatingClass}">
+                                ${item.seating === 'indoor' ? '室内' : item.seating === 'outdoor' ? '室外' : '快速'}
+                            </span>
+                            
+                            ${item.tableNumber ? 
+                                `<span class="table-badge">${item.tableNumber}</span>` : 
+                                ''}
+                        </div>
+                    </div>
+                    
+                    <!-- 次要信息 -->
+                    <div class="secondary-info">
+                        <div class="info-row">
+                            <a href="javascript:void(0)" onclick="makeCall('${item.phone}')" class="phone-link">
+                                ${item.phone}
+                            </a>
+                            ${item.callCount > 0 ? 
+                                `<span class="call-badge">已拨打 ${item.callCount} 次</span>` : 
+                                ''}
+                        </div>
+                        
+                        <div class="preferences">
+                            ${item.babyChairCount > 0 ? 
+                                `<span class="preference-tag baby">宝宝椅 ${item.babyChairCount}张</span>` : 
+                                ''}
+                        </div>
+                        
+                        <div style="margin-top:8px; font-weight:500; color:#718096;">
+                            状态: ${item.status === 'completed' ? '✅ 已完成' : '❌ 已取消'}
+                            ${item.completedAt ? ' · ' + new Date(item.completedAt.toDate()).toLocaleString() : ''}
+                        </div>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        // 每分钟更新一次超时状态
+        setInterval(() => {
+            renderActiveQueue();
+            updateTimeoutStats();
+        }, 60000);
+
+        // 初始化
+        switchTab('active');
+    </script>
+</body>
+</html>
