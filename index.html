@@ -622,6 +622,126 @@
         let currentUserQueueNumber = null;
         let allQueueData = [];
 
+        // ========== 数据记录系统 ==========
+        // 获取今天的日期（YYYY-MM-DD格式）
+        function getTodayDate() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // 判断当前是否高峰时段
+        function isPeakHour() {
+            const now = new Date();
+            const hour = now.getHours();
+            const minute = now.getMinutes();
+            const timeValue = hour + minute / 60;
+            
+            // 午餐高峰 12:00-14:00
+            if (timeValue >= 12 && timeValue < 14) return true;
+            // 晚餐高峰 17:30-21:00
+            if (timeValue >= 17.5 && timeValue < 21) return true;
+            
+            return false;
+        }
+
+        // 记录完成订单的数据
+        async function recordOrderData(orderData) {
+            try {
+                const today = getTodayDate();
+                const peakHour = isPeakHour();
+                
+                // 计算实际等待时间
+                const createdTime = new Date(orderData.createdAt).getTime();
+                const completedTime = new Date().getTime();
+                const actualWaitTime = Math.round((completedTime - createdTime) / (1000 * 60));
+                
+                // 获取当天数据
+                const dayData = JSON.parse(localStorage.getItem(`queue_data_${today}`) || '[]');
+                
+                // 添加新记录
+                dayData.push({
+                    queueNumber: orderData.queueNumber,
+                    position: orderData.position || 0,
+                    estimatedWaitTime: orderData.estimatedWaitTime || 0,
+                    actualWaitTime: actualWaitTime,
+                    peakHour: peakHour,
+                    timestamp: new Date().toISOString()
+                });
+                
+                // 只保留最近50条记录
+                if (dayData.length > 50) {
+                    dayData.shift();
+                }
+                
+                // 保存到localStorage
+                localStorage.setItem(`queue_data_${today}`, JSON.stringify(dayData));
+                
+                // 清理7天前的旧数据
+                cleanOldData();
+                
+                console.log(`📊 数据已记录: ${today} - ${actualWaitTime}分钟`);
+                
+            } catch (error) {
+                console.error('记录数据失败:', error);
+            }
+        }
+
+        // 清理7天前的数据
+        function cleanOldData() {
+            const today = new Date();
+            for (let i = 8; i <= 30; i++) {
+                const oldDate = new Date(today);
+                oldDate.setDate(oldDate.getDate() - i);
+                const year = oldDate.getFullYear();
+                const month = String(oldDate.getMonth() + 1).padStart(2, '0');
+                const day = String(oldDate.getDate()).padStart(2, '0');
+                const oldDateStr = `${year}-${month}-${day}`;
+                
+                localStorage.removeItem(`queue_data_${oldDateStr}`);
+            }
+        }
+
+        // 获取过去7天的统计数据（方便一周后查看）
+        window.getQueueStatistics = function() {
+            const stats = {};
+            const today = new Date();
+            
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+                
+                const dayData = JSON.parse(localStorage.getItem(`queue_data_${dateStr}`) || '[]');
+                
+                if (dayData.length > 0) {
+                    const peakWaitTimes = dayData.filter(d => d.peakHour).map(d => d.actualWaitTime);
+                    const offPeakWaitTimes = dayData.filter(d => !d.peakHour).map(d => d.actualWaitTime);
+                    
+                    stats[dateStr] = {
+                        totalOrders: dayData.length,
+                        averageWait: Math.round(dayData.reduce((sum, d) => sum + d.actualWaitTime, 0) / dayData.length),
+                        peakHourAvg: peakWaitTimes.length ? Math.round(peakWaitTimes.reduce((sum, t) => sum + t, 0) / peakWaitTimes.length) : 0,
+                        offPeakAvg: offPeakWaitTimes.length ? Math.round(offPeakWaitTimes.reduce((sum, t) => sum + t, 0) / offPeakWaitTimes.length) : 0,
+                        data: dayData
+                    };
+                }
+            }
+            
+            console.log('📈 过去7天统计数据:', stats);
+            return stats;
+        };
+
+        // 在控制台输出使用说明
+        console.log('📊 数据记录系统已启动');
+        console.log('一周后输入: getQueueStatistics() 查看统计数据');
+        // ================================
+
         // 语言配置 - 添加等待时间相关翻译
         const translations = {
             en: {
@@ -925,6 +1045,14 @@
                 document.getElementById('hasQueueContent').classList.remove('hidden');
                 document.getElementById('activeQueueStatus').classList.add('hidden');
                 document.getElementById('completedQueueStatus').classList.remove('hidden');
+                
+                // 记录完成订单的数据
+                if (currentUserDocId) {
+                    const userOrder = allQueueData.find(item => item.id === currentUserDocId);
+                    if (userOrder) {
+                        recordOrderData(userOrder);
+                    }
+                }
             }
         }
 
