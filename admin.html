@@ -859,10 +859,15 @@
         <h1>Queue Admin</h1>
         <h2>排队管理 · 实时更新</h2>
 
-        <!-- 统计按钮 -->
-        <button onclick="openStatsModal()" class="stats-btn">
-            查看排队统计数据
-        </button>
+        <!-- 排队开关按钮 -->
+        <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+            <button onclick="openStatsModal()" class="stats-btn" style="flex: 1; min-width: 150px;">
+                查看排队统计数据
+            </button>
+            <button id="toggleQueueBtn" onclick="toggleQueueStatus()" style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); color: white; border: none; border-radius: 30px; padding: 14px 24px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3); transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                🟢 排队已开放
+            </button>
+        </div>
 
         <!-- 统计弹窗 -->
         <div id="statsModal" class="modal">
@@ -1446,7 +1451,49 @@
             updateTimeoutStats();
         }, 60000);
 
+        // ========== 排队开关功能 ==========
+
+        // 初始化排队状态
+        function initializeQueueStatus() {
+            const queueEnabled = localStorage.getItem('queueEnabled');
+            if (queueEnabled === null) {
+                // 首次使用，默认开放排队
+                localStorage.setItem('queueEnabled', 'true');
+            }
+            updateQueueButtonStatus();
+        }
+
+        // 切换排队状态
+        window.toggleQueueStatus = function() {
+            const currentStatus = localStorage.getItem('queueEnabled') === 'true';
+            const newStatus = !currentStatus;
+            localStorage.setItem('queueEnabled', newStatus ? 'true' : 'false');
+            updateQueueButtonStatus();
+
+            // 显示提示
+            alert(newStatus ? '✅ 排队已开放，顾客可以扫码排队' : '🔴 排队已关闭，顾客无法进行排队');
+        }
+
+        // 更新排队按钮状态
+        function updateQueueButtonStatus() {
+            const btn = document.getElementById('toggleQueueBtn');
+            const queueEnabled = localStorage.getItem('queueEnabled') === 'true';
+
+            if (queueEnabled) {
+                btn.textContent = '🟢 排队已开放';
+                btn.style.background = 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)';
+                btn.style.boxShadow = '0 4px 15px rgba(72, 187, 120, 0.3)';
+            } else {
+                btn.textContent = '🔴 排队已关闭';
+                btn.style.background = 'linear-gradient(135deg, #f56565 0%, #e53e3e 100%)';
+                btn.style.boxShadow = '0 4px 15px rgba(245, 101, 101, 0.3)';
+            }
+        }
+
+        // ====================================
+
         // 初始化
+        initializeQueueStatus();
         switchTab('active');
     </script>
 </body>
