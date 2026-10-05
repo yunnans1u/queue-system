@@ -1240,53 +1240,33 @@
                 return;
             }
 
-            // 兼容 0123456789 / 123456789 / 60123456789 / +60123456789 等输入写法
-            const variants = new Set([digits]);
-            const noZero = digits.replace(/^0+/, '');
-            variants.add(noZero);
-            variants.add('0' + noZero);
-            ['60', '65', '86', '1', '44', '61', '81', '82', '66'].forEach(cc => {
-                if (digits.startsWith(cc) && digits.length > cc.length + 5) {
-                    const rest = digits.slice(cc.length).replace(/^0+/, '');
-                    variants.add(rest);
-                    variants.add('0' + rest);
-                }
-            });
-            const list = Array.from(variants).filter(Boolean).slice(0, 10);
+            // 用页面已实时加载的排队列表比对，忽略空格/横线/区号/开头0
+            const norm = v => String(v || '').replace(/\D/g, '').replace(/^0+/, '');
+            const q = norm(digits);
+            const isMatch = r => {
+                const cands = [norm(r.phoneNumber), norm(r.phone)].filter(c => c.length >= 6);
+                return cands.some(c => c === q || (q.length >= 7 && c.endsWith(q)) || (c.length >= 7 && q.endsWith(c)));
+            };
 
-            show('查询中...', true);
+            const records = allQueueData
+                .filter(isMatch)
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-            try {
-                const snapshot = await db.collection('queue')
-                    .where('phoneNumber', 'in', list)
-                    .get();
-
-                const records = snapshot.docs.map(d => ({ ...d.data(), id: d.id }))
-                    .filter(r => r.status === 'waiting' || r.status === 'confirmed')
-                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-                if (records.length === 0) {
-                    show(snapshot.empty
-                        ? '没有找到该电话号码的排队记录'
-                        : '该号码目前没有进行中的排队（可能已完成或已取消）', false);
-                    return;
-                }
-
-                const userData = records[0];
-                currentUserDocId = userData.id;
-                currentUserQueueNumber = userData.queueNumber;
-
-                document.getElementById('userQueueNumber').textContent = userData.queueNumber;
-                show(`✅ 找到您的排队号：${userData.queueNumber}`, true);
-
-                updateUserQueuePosition();
-                updateWaitTime();
-                document.getElementById('hasQueueContent').scrollIntoView({ behavior: 'smooth' });
-
-            } catch (error) {
-                console.error('查询失败:', error);
-                show('查询失败，请重试', false);
+            if (records.length === 0) {
+                show('目前没有找到该号码进行中的排队记录（可能已叫号完成，或号码输入有误）', false);
+                return;
             }
+
+            const userData = records[0];
+            currentUserDocId = userData.id;
+            currentUserQueueNumber = userData.queueNumber;
+
+            document.getElementById('userQueueNumber').textContent = userData.queueNumber;
+            show(`✅ 找到您的排队号：${userData.queueNumber}`, true);
+
+            updateUserQueuePosition();
+            updateWaitTime();
+            document.getElementById('hasQueueContent').scrollIntoView({ behavior: 'smooth' });
         };
 
         function updateUILanguage() {
