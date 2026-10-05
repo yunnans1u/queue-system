@@ -321,11 +321,74 @@
         .success-card {
             background: linear-gradient(135deg, #c6f6d5 0%, #9ae6b4 100%);
             border-radius: 20px;
-            padding: 20px;
+            padding: 30px 20px;
             margin: 16px 0;
-            border: 2px solid #48bb78;
+            border: 3px solid #48bb78;
             text-align: center;
             animation: slideIn 0.5s ease;
+            box-shadow: 0 8px 24px rgba(72, 187, 120, 0.3);
+        }
+
+        .success-number-container {
+            margin: 20px 0;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .success-number {
+            font-size: 72px;
+            font-weight: 900;
+            color: #48bb78;
+            letter-spacing: 4px;
+            margin: 10px 0;
+            line-height: 1;
+        }
+
+        .success-message {
+            font-size: 14px;
+            color: #4a5568;
+            margin-top: 12px;
+            font-weight: 500;
+        }
+
+        /* 信息网格卡片 */
+        .success-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .success-info-item {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .success-info-label {
+            font-size: 12px;
+            color: #718096;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .success-info-value {
+            font-size: 32px;
+            font-weight: 800;
+            color: #667eea;
+            line-height: 1;
+        }
+
+        .success-info-unit {
+            font-size: 12px;
+            color: #718096;
+            font-weight: 600;
+            margin-top: 4px;
         }
 
         @keyframes slideIn {
@@ -509,13 +572,31 @@
         <!-- 成功提示卡片 (默认隐藏) -->
         <div id="successCard" class="success-card hidden">
             <div class="success-title" id="successTitle">✅ 排队成功！</div>
-            <div class="success-number" id="successNumber">A1</div>
-            <div class="success-message" id="successMessage">
-                您的号码已成功登记
+
+            <!-- 排队号码 - 最大最醒目 -->
+            <div class="success-number-container">
+                <div class="success-number" id="successNumber">A1</div>
+                <div class="success-message" id="successMessage">您的号码已成功登记</div>
             </div>
+
+            <!-- 关键信息卡片 -->
+            <div class="success-info-grid">
+                <div class="success-info-item">
+                    <div class="success-info-label">前面人数</div>
+                    <div class="success-info-value" id="successAheadCount">0</div>
+                    <div class="success-info-unit" id="successAheadUnit">人</div>
+                </div>
+                <div class="success-info-item">
+                    <div class="success-info-label">预估等待时间</div>
+                    <div class="success-info-value" id="successWaitTime">10-20</div>
+                    <div class="success-info-unit" id="successWaitUnit">分钟</div>
+                </div>
+            </div>
+
+            <!-- 动作指引 -->
             <div class="success-note" id="successNote">
-                <p>📞 <span class="highlight">当桌子清理完毕，我们会给您打电话</span></p>
-                <p>请保持电话畅通，谢谢您的耐心等待 🙏</p>
+                <p>📞 <span class="highlight">当桌子准备好，我们会给您打电话</span></p>
+                <p>📱 请保持手机畅通，谢谢您的耐心等待 🙏</p>
             </div>
         </div>
 
@@ -1100,9 +1181,31 @@
 
         function showSuccessCard(queueNumber) {
             const successCard = document.getElementById('successCard');
+            const t = translations[currentLang];
+
             document.getElementById('successNumber').textContent = queueNumber;
+
+            // 计算当前用户的排队位置和等待时间
+            const userIndex = allQueueData.findIndex(item => item.id === currentUserDocId);
+            if (userIndex !== -1) {
+                const position = userIndex + 1;
+                const aheadCount = position - 1;
+                const waitRange = calculateWaitTimeRange(position);
+
+                // 显示前面人数
+                document.getElementById('successAheadCount').textContent = aheadCount;
+
+                // 显示等待时间
+                document.getElementById('successWaitTime').textContent = `${waitRange.min}-${waitRange.max}`;
+
+                // 更新翻译文本
+                document.getElementById('successAheadUnit').textContent = currentLang === 'en' ? 'people' : (currentLang === 'ja' ? '人' : (currentLang === 'ko' ? '명' : '人'));
+                document.getElementById('successWaitUnit').textContent = t.waitTimeMinutes;
+            }
+
             successCard.classList.remove('hidden');
 
+            // 7秒后自动隐藏success-card
             setTimeout(() => {
                 successCard.style.opacity = '0';
                 successCard.style.transition = 'opacity 1s';
@@ -1110,7 +1213,7 @@
                     successCard.classList.add('hidden');
                     successCard.style.opacity = '1';
                 }, 1000);
-            }, 5000);
+            }, 7000);
         }
 
         window.resetForNewQueue = function() {
