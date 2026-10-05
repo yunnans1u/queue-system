@@ -973,32 +973,37 @@
 
         async function generateSequentialQueueNumber() {
             const todayLetter = getTodayLetter();
-            const counterRef = db.collection('settings').doc(`counter_${getTodayDateString()}`);
-
-            let nextNumber;
-            try {
-                // 当天计数器首次创建时，以当天已有的最大号码作为起点
-                const existing = await counterRef.get();
-                const seed = existing.exists ? 0 : await getTodayMaxNumber();
-
-                // 事务保证同一时刻多人排队也不会拿到相同号码
-                nextNumber = await db.runTransaction(async (tx) => {
-                    const doc = await tx.get(counterRef);
-                    const next = (doc.exists ? doc.data().n : seed) + 1;
-                    tx.set(counterRef, { n: next });
-                    return next;
-                });
-            } catch (err) {
-                // 保底：计数器不可用时退回按当天最大号码+1，确保顾客仍能排队
-                console.warn('counter transaction failed, fallback:', err);
-                nextNumber = (await getTodayMaxNumber()) + 1;
-            }
+            const nextNumber = (await getTodayMaxNumber()) + 1;
 
             const queueNumber = `${todayLetter}${nextNumber}`;
 
             console.log(`Generated sequential number: ${queueNumber} (next: ${nextNumber})`);
 
             return queueNumber;
+        }
+
+        // 写入后检查当天是否有人拿到同一个号码；若有，后到的一方换成新号码
+        async function ensureUniqueNumber(docRef, number) {
+            const todayLetter = getTodayLetter();
+            const startOfDay = new Date();
+            startOfDay.setHours(0, 0, 0, 0);
+
+            for (let i = 0; i < 4; i++) {
+                const snap = await db.collection('queue').where('queueNumber', '==', number).get();
+                const sameToday = snap.docs
+                    .map(d => ({ id: d.id, createdAt: d.data().createdAt || '' }))
+                    .filter(d => new Date(d.createdAt) >= startOfDay)
+                    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+
+                if (sameToday.length <= 1 || sameToday[0].id === docRef.id) {
+                    return number;
+                }
+
+                const newNumber = `${todayLetter}${(await getTodayMaxNumber()) + 1}`;
+                await docRef.update({ queueNumber: newNumber });
+                number = newNumber;
+            }
+            return number;
         }
 
         function calculateWaitTimeRange(position) {
@@ -1271,7 +1276,7 @@
                 document.getElementById('noQueueMessage').classList.add('hidden');
                 document.getElementById('hasQueueContent').classList.add('hidden');
 
-                const queueNumber = await generateSequentialQueueNumber();
+                let queueNumber = await generateSequentialQueueNumber();
 
                 const docRef = await db.collection('queue').add({
                     queueNumber,
@@ -1290,6 +1295,12 @@
                 });
 
                 console.log('Queue added:', docRef.id);
+
+                try {
+                    queueNumber = await ensureUniqueNumber(docRef, queueNumber);
+                } catch (err) {
+                    console.error('unique check failed:', err);
+                }
 
                 currentUserDocId = docRef.id;
                 currentUserQueueNumber = queueNumber;
