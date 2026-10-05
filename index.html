@@ -560,6 +560,7 @@
                 <input type="tel" id="queryPhoneNumber" placeholder="📞 输入电话号码查询排队状态" style="flex: 1; min-width: 200px; padding: 12px 16px; border: 1px solid #cbd5e0; border-radius: 30px; font-size: 14px; background: white;">
                 <button onclick="queryQueueStatus()" style="padding: 12px 24px; background: #4299e1; color: white; border: none; border-radius: 30px; cursor: pointer; font-weight: 600; font-size: 14px; white-space: nowrap;">🔍 查询</button>
             </div>
+            <div id="queryResultMsg" style="display:none; margin-bottom: 8px; padding: 10px 14px; border-radius: 12px; font-size: 14px; font-weight: 600;"></div>
             <small style="color: #718096; font-size: 12px;">💡 如果浏览器缓存被清除，可使用此功能重新查询您的排队状态</small>
         </div>
 
@@ -744,9 +745,14 @@
         let allQueueData = [];
 
         // ========== 排队开关检查 ==========
+        let queueOpen = true;
+        db.collection('settings').doc('queue').onSnapshot((doc) => {
+            queueOpen = !(doc.exists && doc.data().enabled === false);
+            checkQueueStatus();
+        }, (err) => console.error('settings listener error:', err));
+
         function checkQueueStatus() {
-            const queueEnabled = localStorage.getItem('queueEnabled');
-            const isEnabled = queueEnabled !== 'false'; // 默认为开放
+            const isEnabled = queueOpen;
 
             const queueClosedNotice = document.getElementById('queueClosedNotice');
             const queueForm = document.getElementById('queueForm');
@@ -771,12 +777,6 @@
             }
         }
 
-        // 监听localStorage变化（如果在另一个标签页改变）
-        window.addEventListener('storage', function(e) {
-            if (e.key === 'queueEnabled') {
-                checkQueueStatus();
-            }
-        });
 
         // ====================================
 
@@ -1226,45 +1226,66 @@
 
         // 查询排队状态
         window.queryQueueStatus = async function() {
-            const phoneNumber = document.getElementById('queryPhoneNumber').value.trim();
-            if (!phoneNumber) {
-                showMessage('请输入电话号码', 'error');
+            const msgEl = document.getElementById('queryResultMsg');
+            const show = (text, ok) => {
+                msgEl.textContent = text;
+                msgEl.style.display = 'block';
+                msgEl.style.background = ok ? '#c6f6d5' : '#fed7d7';
+                msgEl.style.color = ok ? '#22543d' : '#9b2c2c';
+            };
+
+            const digits = document.getElementById('queryPhoneNumber').value.replace(/\D/g, '');
+            if (!digits) {
+                show('请输入电话号码', false);
                 return;
             }
 
+            // 兼容 0123456789 / 123456789 / 60123456789 / +60123456789 等输入写法
+            const variants = new Set([digits]);
+            const noZero = digits.replace(/^0+/, '');
+            variants.add(noZero);
+            variants.add('0' + noZero);
+            ['60', '65', '86', '1', '44', '61', '81', '82', '66'].forEach(cc => {
+                if (digits.startsWith(cc) && digits.length > cc.length + 5) {
+                    const rest = digits.slice(cc.length).replace(/^0+/, '');
+                    variants.add(rest);
+                    variants.add('0' + rest);
+                }
+            });
+            const list = Array.from(variants).filter(Boolean).slice(0, 10);
+
+            show('查询中...', true);
+
             try {
                 const snapshot = await db.collection('queue')
-                    .where('phone', '==', phoneNumber)
-                    .orderBy('createdAt', 'desc')
-                    .limit(1)
+                    .where('phoneNumber', 'in', list)
                     .get();
 
-                if (snapshot.empty) {
-                    showMessage('没有找到该电话号码的排队记录', 'error');
+                const records = snapshot.docs.map(d => ({ ...d.data(), id: d.id }))
+                    .filter(r => r.status === 'waiting' || r.status === 'confirmed')
+                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+                if (records.length === 0) {
+                    show(snapshot.empty
+                        ? '没有找到该电话号码的排队记录'
+                        : '该号码目前没有进行中的排队（可能已完成或已取消）', false);
                     return;
                 }
 
-                const doc = snapshot.docs[0];
-                const userData = doc.data();
-                userData.id = doc.id;
-
-                // 设置当前用户信息
+                const userData = records[0];
                 currentUserDocId = userData.id;
                 currentUserQueueNumber = userData.queueNumber;
 
-                // 更新UI
                 document.getElementById('userQueueNumber').textContent = userData.queueNumber;
-                document.getElementById('queueForm').scrollIntoView({ behavior: 'smooth' });
+                show(`✅ 找到您的排队号：${userData.queueNumber}`, true);
 
-                showMessage(`✅ 找到您的排队号：${userData.queueNumber}`, 'success');
-
-                // 触发排队位置更新
                 updateUserQueuePosition();
                 updateWaitTime();
+                document.getElementById('hasQueueContent').scrollIntoView({ behavior: 'smooth' });
 
             } catch (error) {
                 console.error('查询失败:', error);
-                showMessage('查询失败，请重试', 'error');
+                show('查询失败，请重试', false);
             }
         };
 
@@ -1334,9 +1355,16 @@
             e.preventDefault();
 
             // 检查排队是否开放
-            if (localStorage.getItem('queueEnabled') === 'false') {
-                showMessage('排队系统已关闭，无法进行排队', 'error');
-                return;
+            try {
+                const settingsDoc = await db.collection('settings').doc('queue').get();
+                if (settingsDoc.exists && settingsDoc.data().enabled === false) {
+                    queueOpen = false;
+                    checkQueueStatus();
+                    showMessage('排队系统已关闭，无法进行排队', 'error');
+                    return;
+                }
+            } catch (err) {
+                console.error('settings check failed:', err);
             }
 
             const name = document.getElementById('name').value;

@@ -1454,30 +1454,31 @@
         // ========== 排队开关功能 ==========
 
         // 初始化排队状态
+        let queueEnabledState = true;
+
         function initializeQueueStatus() {
-            const queueEnabled = localStorage.getItem('queueEnabled');
-            if (queueEnabled === null) {
-                // 首次使用，默认开放排队
-                localStorage.setItem('queueEnabled', 'true');
-            }
-            updateQueueButtonStatus();
+            db.collection('settings').doc('queue').onSnapshot((doc) => {
+                queueEnabledState = !(doc.exists && doc.data().enabled === false);
+                updateQueueButtonStatus();
+            }, (err) => console.error('settings listener error:', err));
         }
 
-        // 切换排队状态
-        window.toggleQueueStatus = function() {
-            const currentStatus = localStorage.getItem('queueEnabled') === 'true';
-            const newStatus = !currentStatus;
-            localStorage.setItem('queueEnabled', newStatus ? 'true' : 'false');
-            updateQueueButtonStatus();
-
-            // 显示提示
-            alert(newStatus ? '✅ 排队已开放，顾客可以扫码排队' : '🔴 排队已关闭，顾客无法进行排队');
+        // 切换排队状态（写入 Firestore，所有顾客设备同步生效）
+        window.toggleQueueStatus = async function() {
+            const newStatus = !queueEnabledState;
+            try {
+                await db.collection('settings').doc('queue').set({ enabled: newStatus });
+                alert(newStatus ? '✅ 排队已开放，顾客可以扫码排队' : '🔴 排队已关闭，顾客无法进行排队');
+            } catch (err) {
+                console.error(err);
+                alert('❌ 切换失败，请检查网络后重试');
+            }
         }
 
         // 更新排队按钮状态
         function updateQueueButtonStatus() {
             const btn = document.getElementById('toggleQueueBtn');
-            const queueEnabled = localStorage.getItem('queueEnabled') === 'true';
+            const queueEnabled = queueEnabledState;
 
             if (queueEnabled) {
                 btn.textContent = '🟢 排队已开放';
