@@ -975,17 +975,24 @@
             const todayLetter = getTodayLetter();
             const counterRef = db.collection('settings').doc(`counter_${getTodayDateString()}`);
 
-            // 当天计数器首次创建时，以当天已有的最大号码作为起点
-            const existing = await counterRef.get();
-            const seed = existing.exists ? 0 : await getTodayMaxNumber();
+            let nextNumber;
+            try {
+                // 当天计数器首次创建时，以当天已有的最大号码作为起点
+                const existing = await counterRef.get();
+                const seed = existing.exists ? 0 : await getTodayMaxNumber();
 
-            // 事务保证同一时刻多人排队也不会拿到相同号码
-            const nextNumber = await db.runTransaction(async (tx) => {
-                const doc = await tx.get(counterRef);
-                const next = (doc.exists ? doc.data().n : seed) + 1;
-                tx.set(counterRef, { n: next });
-                return next;
-            });
+                // 事务保证同一时刻多人排队也不会拿到相同号码
+                nextNumber = await db.runTransaction(async (tx) => {
+                    const doc = await tx.get(counterRef);
+                    const next = (doc.exists ? doc.data().n : seed) + 1;
+                    tx.set(counterRef, { n: next });
+                    return next;
+                });
+            } catch (err) {
+                // 保底：计数器不可用时退回按当天最大号码+1，确保顾客仍能排队
+                console.warn('counter transaction failed, fallback:', err);
+                nextNumber = (await getTodayMaxNumber()) + 1;
+            }
 
             const queueNumber = `${todayLetter}${nextNumber}`;
 
