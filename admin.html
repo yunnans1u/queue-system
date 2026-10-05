@@ -859,13 +859,16 @@
         <h1>Queue Admin</h1>
         <h2>排队管理 · 实时更新</h2>
 
-        <!-- 排队开关按钮 -->
+        <!-- 排队开关按钮和管理功能 -->
         <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
             <button onclick="openStatsModal()" class="stats-btn" style="flex: 1; min-width: 150px;">
                 查看排队统计数据
             </button>
             <button id="toggleQueueBtn" onclick="toggleQueueStatus()" style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); color: white; border: none; border-radius: 30px; padding: 14px 24px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3); transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px;">
                 🟢 排队已开放
+            </button>
+            <button onclick="cleanupOldRecords()" style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%); color: white; border: none; border-radius: 30px; padding: 14px 24px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(237, 137, 54, 0.3); transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px;" title="清理30天前的已完成记录">
+                🗑️ 清理旧记录
             </button>
         </div>
 
@@ -1492,8 +1495,117 @@
 
         // ====================================
 
+        // ========== 清理旧记录功能 ==========
+
+        // 清理30天前的已完成记录
+        window.cleanupOldRecords = async function() {
+            if (!confirm('⚠️ 确定要清理30天前的已完成排队记录吗？\n此操作无法撤销！')) {
+                return;
+            }
+
+            try {
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+                // 查询所有30天前的已完成/已取消记录
+                const snapshot = await db.collection('queue')
+                    .where('completedAt', '<', thirtyDaysAgo)
+                    .where('status', 'in', ['completed', 'cancelled'])
+                    .get();
+
+                if (snapshot.empty) {
+                    alert('✅ 没有需要清理的记录');
+                    return;
+                }
+
+                const count = snapshot.size;
+                console.log(`准备删除 ${count} 条30天前的记录...`);
+
+                // 批量删除
+                let deleted = 0;
+                const deletePromises = [];
+
+                snapshot.forEach(doc => {
+                    deletePromises.push(db.collection('queue').doc(doc.id).delete());
+                    if (deletePromises.length >= 100) {
+                        Promise.all(deletePromises).then(() => {
+                            deleted += deletePromises.length;
+                        });
+                        deletePromises.length = 0;
+                    }
+                });
+
+                // 处理剩余的删除操作
+                if (deletePromises.length > 0) {
+                    await Promise.all(deletePromises);
+                    deleted += deletePromises.length;
+                }
+
+                alert(`✅ 清理成功！\n已删除 ${count} 条30天前的记录\n\n这将帮助系统保持性能。`);
+
+                // 刷新页面显示最新数据
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+
+            } catch (error) {
+                console.error('清理失败:', error);
+                alert('❌ 清理失败，请重试。错误: ' + error.message);
+            }
+        }
+
+        // 自动清理（每天检查一次）
+        function setupAutoCleanup() {
+            // 检查是否已经在今天执行过清理
+            const lastCleanupDate = localStorage.getItem('lastAutoCleanupDate');
+            const today = new Date().toISOString().split('T')[0];
+
+            if (lastCleanupDate !== today) {
+                // 延迟10秒后执行自动清理
+                setTimeout(async function() {
+                    try {
+                        const thirtyDaysAgo = new Date();
+                        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+                        const snapshot = await db.collection('queue')
+                            .where('completedAt', '<', thirtyDaysAgo)
+                            .where('status', 'in', ['completed', 'cancelled'])
+                            .get();
+
+                        if (!snapshot.empty) {
+                            let deleted = 0;
+                            const deletePromises = [];
+
+                            snapshot.forEach(doc => {
+                                deletePromises.push(db.collection('queue').doc(doc.id).delete());
+                                deleted++;
+
+                                if (deletePromises.length >= 100) {
+                                    Promise.all(deletePromises);
+                                    deletePromises.length = 0;
+                                }
+                            });
+
+                            if (deletePromises.length > 0) {
+                                await Promise.all(deletePromises);
+                            }
+
+                            console.log(`🗑️ 自动清理完成：删除了 ${deleted} 条30天前的记录`);
+                        }
+
+                        localStorage.setItem('lastAutoCleanupDate', today);
+                    } catch (error) {
+                        console.error('自动清理失败:', error);
+                    }
+                }, 10000);
+            }
+        }
+
+        // ====================================
+
         // 初始化
         initializeQueueStatus();
+        setupAutoCleanup();
         switchTab('active');
     </script>
 </body>
