@@ -1170,7 +1170,13 @@
         }
 
         // 监听实时更新
+        // 只监听最近2天的记录，避免每次打开页面读取全部历史记录（节省免费读取额度）
+        const adminCutoff = new Date();
+        adminCutoff.setHours(0, 0, 0, 0);
+        adminCutoff.setDate(adminCutoff.getDate() - 1);
+
         db.collection('queue')
+            .where('timestamp', '>=', adminCutoff)
             .orderBy('timestamp', 'asc')
             .onSnapshot((snapshot) => {
                 activeQueue = [];

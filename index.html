@@ -1391,6 +1391,9 @@
                 document.getElementById('userQueueNumber').textContent = queueNumber;
                 document.getElementById('loadingMessage').classList.add('hidden');
 
+                if (allQueueData.some(item => item.id === currentUserDocId)) {
+                    updateUserQueuePosition();
+                }
                 showSuccessCard(queueNumber);
 
                 document.getElementById('name').value = '';
