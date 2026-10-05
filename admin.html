@@ -1495,57 +1495,105 @@
 
         // ====================================
 
-        // ========== 清理旧记录功能 ==========
+        // ========== 简单清理功能 (Spark免费计划优化版) ==========
 
-        // 清理30天前的已完成记录
-        window.cleanupOldRecords = async function() {
-            alert('⚠️ 清理功能需要付费计划\n\n当前使用的是Firestore Spark免费计划，该功能需要创建复合索引，这在免费计划中受限。\n\n建议：\n1. 定期手动清理（通过Firebase控制台删除老记录）\n2. 或升级到付费计划以启用自动清理\n\n免费计划每日有50K次读取限制，请合理使用。');
+        // 清理特定日期的已完成记录（简单查询，不需要复合索引）
+        async function cleanupByDate(dateString) {
+            try {
+                const targetDate = new Date(dateString);
+                const nextDate = new Date(targetDate);
+                nextDate.setDate(nextDate.getDate() + 1);
+
+                // 简单查询：只查询该日期的记录（不需要复合索引）
+                const snapshot = await db.collection('queue')
+                    .where('status', 'in', ['completed', 'cancelled'])
+                    .where('createdAt', '>=', targetDate.toISOString())
+                    .where('createdAt', '<', nextDate.toISOString())
+                    .get();
+
+                if (snapshot.empty) {
+                    return 0;
+                }
+
+                let deleted = 0;
+                const deletePromises = [];
+
+                snapshot.forEach(doc => {
+                    deletePromises.push(db.collection('queue').doc(doc.id).delete());
+                    if (deletePromises.length >= 50) {
+                        Promise.all(deletePromises);
+                        deletePromises.length = 0;
+                    }
+                });
+
+                if (deletePromises.length > 0) {
+                    await Promise.all(deletePromises);
+                }
+
+                return snapshot.size;
+            } catch (error) {
+                console.error(`清理 ${dateString} 失败:`, error);
+                return -1;
+            }
         }
 
-        // 自动清理（每天检查一次）
-        function setupAutoCleanup() {
-            // 检查是否已经在今天执行过清理
-            const lastCleanupDate = localStorage.getItem('lastAutoCleanupDate');
-            const today = new Date().toISOString().split('T')[0];
+        // 清理旧记录 - 用户可选择要清理的日期
+        window.cleanupOldRecords = async function() {
+            const daysAgo = prompt('请输入要清理的天数前的记录\n例如：输入 30 清理30天前的记录\n\n注意：Spark免费计划每次只能清理一天的数据\n(这样可以避免Firestore查询限制)', '30');
 
-            if (lastCleanupDate !== today) {
-                // 延迟10秒后执行自动清理
+            if (!daysAgo || isNaN(daysAgo)) {
+                return;
+            }
+
+            const cleanDate = new Date();
+            cleanDate.setDate(cleanDate.getDate() - parseInt(daysAgo));
+            const cleanDateString = cleanDate.toISOString().split('T')[0];
+
+            if (!confirm(`确定要清理 ${cleanDateString} 的所有已完成排队记录吗？\n此操作无法撤销！`)) {
+                return;
+            }
+
+            try {
+                console.log(`开始清理 ${cleanDateString} 的记录...`);
+                const deleted = await cleanupByDate(cleanDateString);
+
+                if (deleted === -1) {
+                    alert('❌ 清理失败，请检查控制台错误信息');
+                } else if (deleted === 0) {
+                    alert(`✅ 完成！\n${cleanDateString} 没有需要清理的记录`);
+                } else {
+                    alert(`✅ 清理成功！\n已删除 ${deleted} 条 ${cleanDateString} 的记录`);
+                }
+            } catch (error) {
+                console.error('清理失败:', error);
+                alert('❌ 清理失败: ' + error.message);
+            }
+        }
+
+        // 自动清理 - 每3个月清理一次（防止数据膨胀）
+        function setupAutoCleanup() {
+            const lastCleanupMonths = localStorage.getItem('lastCleanupMonths') || '0';
+            const currentMonth = new Date().toISOString().substring(0, 7); // YYYY-MM
+
+            // 每个月的1号执行一次清理
+            if (lastCleanupMonths !== currentMonth) {
                 setTimeout(async function() {
                     try {
-                        const thirtyDaysAgo = new Date();
-                        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                        // 清理90天前的记录
+                        const cleanDate = new Date();
+                        cleanDate.setDate(cleanDate.getDate() - 90);
+                        const cleanDateString = cleanDate.toISOString().split('T')[0];
 
-                        const snapshot = await db.collection('queue')
-                            .where('completedAt', '<', thirtyDaysAgo)
-                            .where('status', 'in', ['completed', 'cancelled'])
-                            .get();
-
-                        if (!snapshot.empty) {
-                            let deleted = 0;
-                            const deletePromises = [];
-
-                            snapshot.forEach(doc => {
-                                deletePromises.push(db.collection('queue').doc(doc.id).delete());
-                                deleted++;
-
-                                if (deletePromises.length >= 100) {
-                                    Promise.all(deletePromises);
-                                    deletePromises.length = 0;
-                                }
-                            });
-
-                            if (deletePromises.length > 0) {
-                                await Promise.all(deletePromises);
-                            }
-
-                            console.log(`🗑️ 自动清理完成：删除了 ${deleted} 条30天前的记录`);
+                        const deleted = await cleanupByDate(cleanDateString);
+                        if (deleted > 0) {
+                            console.log(`🗑️ 自动清理完成：删除了 ${deleted} 条 ${cleanDateString} 的记录`);
                         }
 
-                        localStorage.setItem('lastAutoCleanupDate', today);
+                        localStorage.setItem('lastCleanupMonths', currentMonth);
                     } catch (error) {
                         console.error('自动清理失败:', error);
                     }
-                }, 10000);
+                }, 5000);
             }
         }
 
@@ -1553,9 +1601,8 @@
 
         // 初始化
         initializeQueueStatus();
-        // 注意：自动清理已禁用以节省Firestore配额（Spark免费计划限制）
-        // 如需清理，请使用管理界面的"清理旧记录"按钮手动触发
-        // setupAutoCleanup();
+        // 启用简单自动清理（每月一次，清理90天前的记录）
+        setupAutoCleanup();
         switchTab('active');
     </script>
 </body>
