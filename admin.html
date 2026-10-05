@@ -1499,59 +1499,7 @@
 
         // 清理30天前的已完成记录
         window.cleanupOldRecords = async function() {
-            if (!confirm('⚠️ 确定要清理30天前的已完成排队记录吗？\n此操作无法撤销！')) {
-                return;
-            }
-
-            try {
-                const thirtyDaysAgo = new Date();
-                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-                // 查询所有30天前的已完成/已取消记录
-                const snapshot = await db.collection('queue')
-                    .where('completedAt', '<', thirtyDaysAgo)
-                    .where('status', 'in', ['completed', 'cancelled'])
-                    .get();
-
-                if (snapshot.empty) {
-                    alert('✅ 没有需要清理的记录');
-                    return;
-                }
-
-                const count = snapshot.size;
-                console.log(`准备删除 ${count} 条30天前的记录...`);
-
-                // 批量删除
-                let deleted = 0;
-                const deletePromises = [];
-
-                snapshot.forEach(doc => {
-                    deletePromises.push(db.collection('queue').doc(doc.id).delete());
-                    if (deletePromises.length >= 100) {
-                        Promise.all(deletePromises).then(() => {
-                            deleted += deletePromises.length;
-                        });
-                        deletePromises.length = 0;
-                    }
-                });
-
-                // 处理剩余的删除操作
-                if (deletePromises.length > 0) {
-                    await Promise.all(deletePromises);
-                    deleted += deletePromises.length;
-                }
-
-                alert(`✅ 清理成功！\n已删除 ${count} 条30天前的记录\n\n这将帮助系统保持性能。`);
-
-                // 刷新页面显示最新数据
-                setTimeout(() => {
-                    location.reload();
-                }, 1500);
-
-            } catch (error) {
-                console.error('清理失败:', error);
-                alert('❌ 清理失败，请重试。错误: ' + error.message);
-            }
+            alert('⚠️ 清理功能需要付费计划\n\n当前使用的是Firestore Spark免费计划，该功能需要创建复合索引，这在免费计划中受限。\n\n建议：\n1. 定期手动清理（通过Firebase控制台删除老记录）\n2. 或升级到付费计划以启用自动清理\n\n免费计划每日有50K次读取限制，请合理使用。');
         }
 
         // 自动清理（每天检查一次）
@@ -1605,7 +1553,9 @@
 
         // 初始化
         initializeQueueStatus();
-        setupAutoCleanup();
+        // 注意：自动清理已禁用以节省Firestore配额（Spark免费计划限制）
+        // 如需清理，请使用管理界面的"清理旧记录"按钮手动触发
+        // setupAutoCleanup();
         switchTab('active');
     </script>
 </body>
